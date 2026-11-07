@@ -237,7 +237,7 @@ npm run dsh:install             # plugin + bloco no perfil do DSH + serviço da 
 npm run dsh:status              # confere cada peça
 ```
 
-Ou, à mão, a ponte sozinha: `npm run dsh:bridge -- --all`. O `dsh:install` cria o serviço que a mantém rodando (LaunchAgent no macOS, systemd no Linux/WSL), reiniciando sozinha e subindo no login. Ela descobre as sessões abertas pelo `session.lock`, reenvia tudo quando o Habblaud reinicia e fecha o personagem quando a sessão do DSH termina. Para acompanhar só um projeto: `npm run dsh:bridge -- --workspace <pasta>`; para uma sessão específica: `--session <arquivo>`.
+Ou, à mão, a ponte sozinha: `npm run dsh:bridge -- --all`. O `dsh:install` cria o serviço que a mantém rodando (LaunchAgent no macOS, systemd no Linux/WSL), reiniciando sozinha e subindo no login. A ponte descobre as sessões abertas pelo `session.lock`, reenvia tudo quando o Habblaud reinicia e fecha o personagem quando a sessão do DSH termina. Para acompanhar só um projeto: `npm run dsh:bridge -- --workspace <pasta>`; para uma sessão específica: `--session <arquivo>`.
 
 > O terminal do Habblaud abre a conversa do DSH (prompts, ferramentas e resultados) e a caixa de mensagens funciona com o plugin `mod/habblaud-dsh-inbox`: ele busca as mensagens no Habblaud e as entrega como prompt na sessão. O cartão do DSH mostra **tokens** (sessão, 5 h e semana) somados dos eventos da sessão — o DeepSeek cobra por token, então não há as janelas percentuais do Claude Code e o passo a passo do `mod:install` não se aplica. Aprovações continuam no terminal do DSH. O Habblaud World ainda não recebe agentes DSH (o protocolo só conhece Claude Code e Codex), então eles não entram no pacote do prédio.
 

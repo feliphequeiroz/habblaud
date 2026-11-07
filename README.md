@@ -239,7 +239,7 @@ npm run dsh:install             # plugin + profile block + bridge service (step 
 npm run dsh:status              # checks every piece
 ```
 
-Or the bridge alone, by hand: `npm run dsh:bridge -- --all`. `dsh:install` installs the service that keeps it running (LaunchAgent on macOS, systemd on Linux/WSL), restarting on its own and starting at login. It discovers open sessions through `session.lock`, replays everything when Habblaud restarts, and removes the character when the DSH session ends. For one project: `npm run dsh:bridge -- --workspace <folder>`; for one session: `--session <file>`.
+Or the bridge alone, by hand: `npm run dsh:bridge -- --all`. `dsh:install` installs the service that keeps it running (LaunchAgent on macOS, systemd on Linux/WSL), restarting on its own and starting at login. The bridge discovers open sessions through `session.lock`, replays everything when Habblaud restarts, and removes the character when the DSH session ends. For one project: `npm run dsh:bridge -- --workspace <folder>`; for one session: `--session <file>`.
 
 > Habblaud's terminal opens the DSH conversation (prompts, tools and results) and the message box works with the `mod/habblaud-dsh-inbox` plugin: it fetches messages from Habblaud and delivers them as prompts to the session. The DSH card shows **tokens** (session, 5 h and week) summed from session events — DeepSeek bills per token, so there are no Claude Code percentage windows and the `mod:install` steps do not apply. Approvals stay in the DSH terminal. Habblaud World does not accept DSH agents yet (its protocol only knows Claude Code and Codex), so they stay out of the building packet.
 
