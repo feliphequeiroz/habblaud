@@ -6,9 +6,9 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/marmottajr/habblaud.git"
+    "url": "git+https://github.com/feliphequeiroz/habblaud.git"
   },
-  "homepage": "https://github.com/marmottajr/habblaud#readme",
+  "homepage": "https://github.com/feliphequeiroz/habblaud#readme",
   "type": "module",
   "engines": {
     "node": ">=22.12"
@@ -41,7 +41,11 @@
     "codex:install": "tsx scripts/codex-install.ts install",
     "codex:uninstall": "tsx scripts/codex-install.ts uninstall",
     "codex:status": "tsx scripts/codex-install.ts status",
+    "dsh:install": "tsx scripts/dsh-install.ts install",
+    "dsh:uninstall": "tsx scripts/dsh-install.ts uninstall",
+    "dsh:status": "tsx scripts/dsh-install.ts status",
     "codex:bridge": "tsx scripts/codex-bridge.ts",
+    "dsh:bridge": "tsx scripts/dsh-bridge.ts",
     "remote:setup": "tsx scripts/remote-setup.ts",
     "remote:mdns": "tsx scripts/remote-mdns.ts",
     "release": "tsx scripts/release.ts"

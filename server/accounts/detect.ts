@@ -219,6 +219,11 @@ const ALIAS_TOOLS: Record<Provider, { invokes: RegExp; dir: RegExp }> = {
     invokes: /(?:^|[\s;&|(])(?:[\w.~/-]*\/)?codex(?=$|[\s;&|)])/,
     dir: /\bCODEX_HOME=(?:"([^"]*)"|'([^']*)'|([^\s;&|]+))/,
   },
+  // O DSH ainda não tem um comando de shell com pasta de conta; a entrada só completa o mapa.
+  dsh: {
+    invokes: /(?:^|[\s;&|(])(?:[\w.~/-]*\/)?dsh(?=$|[\s;&|)])/,
+    dir: /\bDSH_HOME=(?:"([^"]*)"|'([^']*)'|([^\s;&|]+))/,
+  },
 };
 
 /**

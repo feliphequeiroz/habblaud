@@ -10,9 +10,9 @@
 import type { AccountInfo } from '../../../shared/types';
 import type { UiContext } from './context';
 import { h, KeyedList, setAttr, setHidden, setStyleVar, setText, setTitle, setVariant } from './dom';
-import { FIVE_HOURS_MS, relativeTime, usageLevel, usageWindowView, WEEK_MS, type UsageWindowView } from './format';
+import { FIVE_HOURS_MS, formatTokens, relativeTime, usageLevel, usageWindowView, WEEK_MS, type UsageWindowView } from './format';
 import { ICONS } from './icons';
-import { isCodex } from './provider';
+import { isCodex, PROVIDER_NAME, providerOf } from './provider';
 import { usageRowFits } from './usage-row';
 import { createAccountChip, createProviderTag, updateAccountChip, updateProviderTag } from './widgets';
 import { tr } from '../../../shared/i18n';
@@ -21,6 +21,7 @@ export const SOURCE_LABEL: Record<NonNullable<AccountInfo['usage']>['source'], s
   cache: tr('cache do /usage do Claude Code'),
   statusline: tr('ao vivo (statusline do Claude Code)'),
   codex: tr('arquivos do Codex'),
+  dsh: tr('tokens da sessão do DeepSeek Harness'),
 };
 
 /** Origem para mostrar: o arquivo ao vivo pode ter sido gravado pelo mod do Habblaud ou pelo tap. */
@@ -162,6 +163,8 @@ function hasWindows(a: Pick<AccountInfo, 'usage'>): boolean {
 export function cardState(a: Pick<AccountInfo, 'usage' | 'usageStatus'>): CardState {
   // "Sem cota" vem antes: a leitura não traz janelas, mas não é "sem dados".
   if (a.usage?.noQuota) return 'noquota';
+  // DSH: tokens são dados mesmo sem as janelas percentuais do Claude Code.
+  if (a.usage?.tokens) return a.usageStatus === 'ok' ? 'ok' : 'stale';
   // Leitura sem nenhuma das janelas (ex.: cache do /usage sem números) vale como "sem dados".
   if (!hasWindows(a)) return 'empty';
   return a.usageStatus === 'ok' ? 'ok' : 'stale';
@@ -337,19 +340,24 @@ export class UsageCards {
     const r = this.refs.get(card)!;
     const now = this.ctx.now();
     const codex = isCodex(a);
+    const provider = providerOf(a);
     updateAccountChip(r.chip, a);
     setStyleVar(card, '--acc', a.color);
     setText(r.name, a.name);
-    updateProviderTag(r.prov, codex ? 'codex' : 'claude', a.name);
-    setText(r.email, usageSubtitle(a));
-    setAttr(card, 'aria-label', tr('{0}{1}: uso do plano', [a.name, codex ? ' (Codex)' : '']));
+    updateProviderTag(r.prov, provider, a.name);
+    const dshTokens = provider === 'dsh' ? a.usage?.tokens : undefined;
+    setText(r.email, provider === 'dsh'
+      ? dshTokens ? tr('{0} tokens nesta sessão', [formatTokens(dshTokens.session ?? 0)]) : tr('sessão local')
+      : usageSubtitle(a));
+    setHidden(r.how, provider === 'dsh');
+    setAttr(card, 'aria-label', tr('{0}{1}: uso do plano', [a.name, provider !== 'claude' ? ` (${PROVIDER_NAME[provider]})` : '']));
 
     const usage = a.usage;
     const state = cardState(a);
     setVariant(card, 'is-', state);
     const five = usage ? usageWindowView(usage.fiveHour, usage.fetchedAt, now, FIVE_HOURS_MS) : null;
     const week = usage ? usageWindowView(usage.sevenDay, usage.fetchedAt, now, WEEK_MS) : null;
-    const showMeters = hasWindows(a);
+    const showMeters = provider !== 'dsh' && hasWindows(a);
     setHidden(r.meters, !showMeters);
     if (usage && showMeters) {
       updateMeter(r.five, five, tr('Sessão de 5 horas'));
@@ -378,10 +386,15 @@ export class UsageCards {
     // Sem números: "sem dados de uso" + "Como ativar" (no Codex, "Como funciona": não há o que instalar). Sem cota:
     // a mensagem, sem botão.
     const [msgLong, msgShort] = usageMessage(a);
-    setText(r.msgLong, msgLong);
-    setText(r.msgShort, msgShort);
-    setHidden(r.msg, state !== 'empty' && state !== 'noquota');
-    setHidden(r.how, state === 'noquota');
+    if (provider === 'dsh' && dshTokens) {
+      setText(r.msgLong, tr('5 h: {0} tokens · semana: {1}', [formatTokens(dshTokens.fiveHour), formatTokens(dshTokens.sevenDay)]));
+      setText(r.msgShort, tr('{0} tokens · 5 h', [formatTokens(dshTokens.fiveHour)]));
+    } else {
+      setText(r.msgLong, provider === 'dsh' ? tr('sessão local') : msgLong);
+      setText(r.msgShort, provider === 'dsh' ? tr('sessão local') : msgShort);
+    }
+    setHidden(r.msg, provider === 'dsh' ? !dshTokens : state !== 'empty' && state !== 'noquota');
+    setHidden(r.how, provider === 'dsh' || state === 'noquota');
     r.msg.classList.toggle('is-noquota', state === 'noquota');
     setTitle(r.msg, state === 'noquota' ? codexUsageNote(a, now) : '');
     setText(r.howLong, codex ? tr('Como funciona') : tr('Como ativar'));
@@ -393,9 +406,12 @@ export class UsageCards {
 
   private updateTip(r: CardRefs, a: AccountInfo, state: CardState, five: UsageWindowView | null, week: UsageWindowView | null, now: number): void {
     const codex = isCodex(a);
+    const provider = providerOf(a);
+    const dshTokens = provider === 'dsh' ? a.usage?.tokens : undefined;
     setText(r.tipTitle, `${a.name}${codex && !/codex/i.test(a.name) ? ' · Codex' : ''}${a.plan ? tr(' · plano {0}', [a.plan]) : ''}`);
     const rows: [string, string][] = [];
     if (codex) rows.push([tr('Ferramenta'), 'Codex']);
+    if (provider === 'dsh') rows.push([tr('Ferramenta'), 'DeepSeek Harness']);
     if (a.email) rows.push(['E-mail', a.email]);
     if (a.organization) rows.push([tr('Organização'), a.organization]);
     if (a.plan) rows.push([tr('Plano'), a.plan]);
@@ -411,12 +427,27 @@ export class UsageCards {
       if (opus) rows.push([tr('Opus (semana)'), opus.summary]);
       if (sonnet) rows.push([tr('Sonnet (semana)'), sonnet.summary]);
     }
+    if (dshTokens) {
+      rows.push([tr('Tokens na sessão'), formatTokens(dshTokens.session ?? 0)]);
+      rows.push([tr('Tokens em 5 h'), formatTokens(dshTokens.fiveHour)]);
+      rows.push([tr('Tokens na semana'), formatTokens(dshTokens.sevenDay)]);
+    }
     if (u && state === 'noquota') rows.push([tr('Cota'), tr('sem cota nem créditos agora')]);
-    if (u && (state !== 'empty' || codex)) {
+    if (u && (state !== 'empty' || codex || provider === 'dsh')) {
       rows.push([tr('Origem'), sourceLabel(u)]);
       rows.push([tr('Atualizado'), relativeTime(u.fetchedAt, now)]);
     }
     syncRows(r.tipRows, rows);
+
+    // DSH: tokens, não cota percentual. O passo a passo do Claude Code não vale aqui.
+    if (provider === 'dsh') {
+      setText(r.tipNote, dshTokens
+        ? tr('Tokens somados das sessões do DeepSeek Harness. O DeepSeek cobra por token: não há janela de cota de 5 h/semana como no Claude Code.')
+        : tr('Ainda não há tokens desta conta: abra uma sessão do DSH com a ponte `npm run dsh:bridge` rodando.'));
+      setHidden(r.tipNote, false);
+      setHidden(r.tipSetup, true);
+      return;
+    }
 
     // Codex: a explicação dele, sem o passo a passo do Claude Code (não há o que instalar para o uso).
     if (codex) {

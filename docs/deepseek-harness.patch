@@ -1,0 +1,1801 @@
+diff --git a/README.md b/README.md
+index 3f92195..9c0ce33 100644
+--- a/README.md
++++ b/README.md
+@@ -228,6 +228,32 @@ Then **open Codex and approve the Habblaud hooks in `/hooks`**: Codex only runs
+ approve it (Habblaud never writes that approval). With Habblaud in Docker, to send messages to Codex sessions,
+ also keep `npm run codex:bridge` running on the Mac (see [Codex](#codex)).
+ 
++### DeepSeek Harness in the office (optional)
++
++The **DeepSeek Harness** (DSH, this agent) shows up too: each open session becomes a character with the **DSH** badge. The DSH writes its session to `~/.dsh/sessions/…/session.v4.jsonl.zstd`; a bridge reads that file and posts the events to Habblaud without writing anything into the session:
++
++```bash
++npm run dsh:bridge -- --all     # every open DSH session, in any project
++```
++
++Keep the bridge running (on macOS, a LaunchAgent with `KeepAlive` works). It discovers open sessions through `session.lock`, replays everything when Habblaud restarts, and removes the character when the DSH session ends. For one project: `npm run dsh:bridge -- --workspace <folder>`; for one session: `--session <file>`.
++
++> Habblaud's terminal opens the DSH conversation (prompts, tools and results) and the message box works with the `mod/habblaud-dsh-inbox` plugin: it fetches messages from Habblaud and delivers them as prompts to the session. The DSH card shows **tokens** (session, 5 h and week) summed from session events — DeepSeek bills per token, so there are no Claude Code percentage windows and the `mod:install` steps do not apply. Approvals stay in the DSH terminal. Habblaud World does not accept DSH agents yet (its protocol only knows Claude Code and Codex), so they stay out of the building packet.
++
++**Messages from the office (DSH plugin):** Habblaud cannot type into the DSH session on its own; the `mod/habblaud-dsh-inbox` plugin bridges it. Once:
++
++```bash
++cp mod/habblaud-dsh-inbox/plugin.mjs ~/.dsh/profiles/desktop/habblaud-inbox.mjs
++# then add to the end of ~/.dsh/profiles/desktop/cordis.patch.yml:
++# - insert:
++#     - id: habblaud-dsh-inbox
++#       name: "./habblaud-inbox.mjs"
++```
++
++DSH reloads the profile by itself (HMR). The log is at `~/.habblaud/dsh-inbox.log`.
++
++Full guide with architecture, LaunchAgent and troubleshooting: [`docs/deepseek-harness.md`](docs/deepseek-harness.md).
++
+ ### Open on your phone (optional)
+ 
+ By default Habblaud only accepts connections from the computer it runs on. To open it on your phone (on the same Wi-Fi), with Docker:
+diff --git a/README.pt-BR.md b/README.pt-BR.md
+index 61976a0..7f8aaf4 100644
+--- a/README.pt-BR.md
++++ b/README.pt-BR.md
+@@ -226,6 +226,32 @@ Depois, **abra o Codex e aprove os hooks do Habblaud em `/hooks`**: o Codex só
+ aprova (o Habblaud nunca grava essa aprovação). Com o Habblaud no Docker, para mandar mensagens às sessões do Codex
+ deixe também `npm run codex:bridge` rodando no Mac (veja [Codex](#codex)).
+ 
++### DeepSeek Harness no escritório (opcional)
++
++O **DeepSeek Harness** (o DSH, este agente) também aparece: cada sessão aberta vira um personagem com o selo **DSH**. O DSH grava a sessão em `~/.dsh/sessions/…/session.v4.jsonl.zstd`; uma ponte lê esse arquivo e manda os eventos para o Habblaud, sem escrever nada na sessão:
++
++```bash
++npm run dsh:bridge -- --all     # todas as sessões abertas do DSH, em qualquer projeto
++```
++
++Deixe a ponte rodando (no macOS, um LaunchAgent com `KeepAlive` resolve). Ela descobre as sessões abertas pelo `session.lock`, reenvia tudo quando o Habblaud reinicia e fecha o personagem quando a sessão do DSH termina. Para acompanhar só um projeto: `npm run dsh:bridge -- --workspace <pasta>`; para uma sessão específica: `--session <arquivo>`.
++
++> O terminal do Habblaud abre a conversa do DSH (prompts, ferramentas e resultados) e a caixa de mensagens funciona com o plugin `mod/habblaud-dsh-inbox`: ele busca as mensagens no Habblaud e as entrega como prompt na sessão. O cartão do DSH mostra **tokens** (sessão, 5 h e semana) somados dos eventos da sessão — o DeepSeek cobra por token, então não há as janelas percentuais do Claude Code e o passo a passo do `mod:install` não se aplica. Aprovações continuam no terminal do DSH. O Habblaud World ainda não recebe agentes DSH (o protocolo só conhece Claude Code e Codex), então eles não entram no pacote do prédio.
++
++**Mensagens pelo escritório (plugin do DSH):** o Habblaud não tem como digitar na sessão do DSH sozinho; o plugin `mod/habblaud-dsh-inbox` faz a ponte. Uma vez:
++
++```bash
++cp mod/habblaud-dsh-inbox/plugin.mjs ~/.dsh/profiles/desktop/habblaud-inbox.mjs
++# e acrescente ao fim de ~/.dsh/profiles/desktop/cordis.patch.yml:
++# - insert:
++#     - id: habblaud-dsh-inbox
++#       name: "./habblaud-inbox.mjs"
++```
++
++O DSH recarrega o perfil sozinho (HMR). O log fica em `~/.habblaud/dsh-inbox.log`.
++
++Guia completo, com arquitetura, LaunchAgent e solução de problemas: [`docs/deepseek-harness.pt-BR.md`](docs/deepseek-harness.pt-BR.md).
++
+ ### Abrir no celular (opcional)
+ 
+ Por padrão o Habblaud só aceita conexões do próprio computador. Para abrir no celular (no mesmo Wi-Fi), com Docker:
+diff --git a/client/src/ui/composer-model.ts b/client/src/ui/composer-model.ts
+index d431daf..5a5faf6 100644
+--- a/client/src/ui/composer-model.ts
++++ b/client/src/ui/composer-model.ts
+@@ -10,6 +10,8 @@ import { tr } from '../../../shared/i18n';
+ export const PLUGIN_HINT = tr('Para mandar mensagens daqui: npm run mod:install (plugin habblaud-mensagens)');
+ /** A mesma dica para um agente do Codex sem entregador (no modo Node o próprio servidor entrega). */
+ export const CODEX_BRIDGE_HINT = tr('Para mandar mensagens ao Codex: com o Habblaud no Docker, deixe npm run codex:bridge rodando; no modo Node funciona sozinho');
++/** O DSH não tem um canal de entrada pelo Habblaud: o terminal é só de leitura e a conversa segue na janela do DSH. */
++export const DSH_MESSAGE_HINT = tr('O DeepSeek Harness ainda não recebe mensagens pelo Habblaud: escreva na janela do DSH. O terminal aqui é só de leitura.');
+ 
+ /**
+  * - ready: dá para mandar (principal com o plugin conectado, recurso ligado, página local);
+@@ -32,9 +34,10 @@ export function composerMode(agent: AgentInfo | undefined, env: ComposerEnv): Co
+   if (agent?.kind === 'sub') return { kind: 'off', text: tr('Subagentes não recebem mensagens: escreva para o agente principal') };
+   if (!agent || agent.status === 'offline' || agent.status === 'done') return { kind: 'off', text: tr('Sessão encerrada') };
+   const codex = agent.provider === 'codex';
++  const dsh = agent.provider === 'dsh';
+   if (!env.enabled) return { kind: 'off', text: codex ? tr('Para responder, use o Codex') : tr('Para responder, use o terminal do Claude Code') };
+   if (!env.local) return { kind: 'off', text: tr('Para mandar mensagens por aqui, abra o Habblaud por http://localhost (ou 127.0.0.1)') };
+-  if (!agent.canMessage) return { kind: 'hint', text: codex ? CODEX_BRIDGE_HINT : PLUGIN_HINT };
++  if (!agent.canMessage) return { kind: 'hint', text: dsh ? DSH_MESSAGE_HINT : codex ? CODEX_BRIDGE_HINT : PLUGIN_HINT };
+   return { kind: 'ready' };
+ }
+ 
+diff --git a/client/src/ui/history.ts b/client/src/ui/history.ts
+index 3fe4dd7..9ded51d 100644
+--- a/client/src/ui/history.ts
++++ b/client/src/ui/history.ts
+@@ -10,7 +10,7 @@ import type { UiComponent, UiContext } from './context';
+ import { h, iconButton, setAttr, setHidden, setText, setTitle } from './dom';
+ import { calendarDayDiff, formatClock, formatDateTime, normalizeSearch, plural, shortPath } from './format';
+ import { ICONS } from './icons';
+-import { isCodex } from './provider';
++import { isCodex, providerTagLabel } from './provider';
+ import { sessionProjectName, TERMINAL_UNAVAILABLE_HINT, type TerminalControl } from './terminal';
+ import { createAccountChip, updateAccountChip } from './widgets';
+ import { intlLocale, tr } from '../../../shared/i18n';
+@@ -317,11 +317,11 @@ export class HistoryPopover implements UiComponent {
+     const title = s.title?.trim() || tr('Sessão sem título');
+     const project = sessionProjectName(s);
+     const live = s.open && !!s.agentId && !!this.ctx.agent(s.agentId);
+-    const codex = isCodex(s);
++    const providerTag = providerTagLabel(s.provider ?? 'claude');
+     const meta = h(
+       'span',
+       { class: 'ui-hist__meta' },
+-      codex ? h('span', { class: 'ui-prov ui-prov--xs', text: 'Codex' }) : null,
++      providerTag ? h('span', { class: 'ui-prov ui-prov--xs', text: providerTag }) : null,
+       h('span', { class: 'ui-hist__project', text: project }),
+       h('span', { class: 'ui-hist__time', text: formatClock(s.lastAt, false) }),
+     );
+@@ -331,9 +331,9 @@ export class HistoryPopover implements UiComponent {
+     const when = s.firstAt !== undefined && calendarDayDiff(s.firstAt, s.lastAt) !== 0 ? `${formatDateTime(s.firstAt)} → ${formatDateTime(s.lastAt)}` : s.firstAt !== undefined ? `${formatDateTime(s.firstAt)} → ${formatClock(s.lastAt, false)}` : formatDateTime(s.lastAt);
+     setTitle(
+       btn,
+-      [title, shortPath(s.project ?? s.projectDir), `${account?.name ?? s.account}${codex ? ' (Codex)' : ''} · ${when} · ${formatSize(s.size)}`, live ? tr('Ainda aberta: abre o terminal ao vivo do agente') : tr('Encerrada: abre a conversa no terminal')].join('\n'),
++      [title, shortPath(s.project ?? s.projectDir), `${account?.name ?? s.account}${providerTag ? ` (${providerTag})` : ''} · ${when} · ${formatSize(s.size)}`, live ? tr('Ainda aberta: abre o terminal ao vivo do agente') : tr('Encerrada: abre a conversa no terminal')].join('\n'),
+     );
+-    setAttr(btn, 'aria-label', `${title}, ${project}, ${account?.name ?? s.account}${codex ? ', Codex' : ''}, ${live ? tr('aberta') : tr('última atividade {0} às {1}', [dayLabel(s.lastAt, now).toLowerCase(), formatClock(s.lastAt, false)])}`);
++    setAttr(btn, 'aria-label', `${title}, ${project}, ${account?.name ?? s.account}${providerTag ? `, ${providerTag}` : ''}, ${live ? tr('aberta') : tr('última atividade {0} às {1}', [dayLabel(s.lastAt, now).toLowerCase(), formatClock(s.lastAt, false)])}`);
+     btn.addEventListener('click', () => {
+       this.hide();
+       this.terminal.openSession(s, this.button);
+diff --git a/client/src/ui/provider.ts b/client/src/ui/provider.ts
+index d8490a9..01ebfd6 100644
+--- a/client/src/ui/provider.ts
++++ b/client/src/ui/provider.ts
+@@ -8,7 +8,14 @@ import { shortcutHint } from './model';
+ import { tr } from '../../../shared/i18n';
+ 
+ /** Nome de cada ferramenta como aparece nos textos. */
+-export const PROVIDER_NAME: Record<Provider, string> = { claude: 'Claude Code', codex: 'Codex' };
++export const PROVIDER_NAME: Record<Provider, string> = { claude: 'Claude Code', codex: 'Codex', dsh: 'DeepSeek Harness' };
++
++/** Selo curto da ferramenta (onde não cabe o nome); undefined = sem selo (Claude Code). */
++export function providerTagLabel(provider: Provider): string | undefined {
++  if (provider === 'codex') return 'Codex';
++  if (provider === 'dsh') return 'DSH';
++  return undefined;
++}
+ 
+ /** Ferramenta de um agente, conta, sessão ou pedido (ausente = Claude Code). */
+ export function providerOf(x: { provider?: Provider } | null | undefined): Provider {
+@@ -45,19 +52,20 @@ export function fallbackShort(id: string, provider: Provider = accountProvider(u
+     .replace(/^\.?(?:claude|codex)(?=[-_.]|$)[-_.]?/i, '');
+   const letter = /[\p{L}\p{N}]/u.exec(rest)?.[0];
+   if (letter) return letter.toUpperCase();
+-  return provider === 'codex' ? 'X' : '?';
++  return provider === 'codex' ? 'X' : provider === 'dsh' ? 'D' : '?';
+ }
+ 
+-/** O selo "Codex" ao lado do nome da conta (não repete quando o nome já diz "Codex"). */
++/** O selo da ferramenta ao lado do nome da conta (não repete quando o nome já diz a ferramenta). */
+ export function showsProviderTag(provider: Provider, accountName = ''): boolean {
+-  return provider === 'codex' && !/codex/i.test(accountName);
++  const tag = providerTagLabel(provider);
++  return !!tag && !new RegExp(tag, 'i').test(accountName);
+ }
+ 
+ /** Rótulo do chip da conta (dica e leitores de tela): "Conta C (dev@x.com)", "Codex · plano Team". */
+ export function accountChipLabel(account: Pick<AccountInfo, 'name' | 'email' | 'plan' | 'provider'> | undefined, fallbackId: string, provider: Provider): string {
+-  if (!account) return fallbackId ? `${fallbackId}${provider === 'codex' ? ' · Codex' : ''}` : tr('Conta desconhecida');
+-  if (provider !== 'codex') return `${account.name}${account.email ? ` (${account.email})` : ''}`;
+-  const tag = showsProviderTag(provider, account.name) ? ' · Codex' : '';
++  if (!account) return fallbackId ? `${fallbackId}${providerTagLabel(provider) ? ` · ${providerTagLabel(provider)}` : ''}` : tr('Conta desconhecida');
++  if (provider === 'claude') return `${account.name}${account.email ? ` (${account.email})` : ''}`;
++  const tag = showsProviderTag(provider, account.name) ? ` · ${providerTagLabel(provider)}` : '';
+   return `${account.name}${tag}${account.plan ? tr(' · plano {0}', [account.plan]) : ''}`;
+ }
+ 
+diff --git a/client/src/ui/rows.ts b/client/src/ui/rows.ts
+index 7ed2375..9f7ba26 100644
+--- a/client/src/ui/rows.ts
++++ b/client/src/ui/rows.ts
+@@ -4,6 +4,7 @@ import { createAvatar, updateAvatar, type AvatarSize } from './avatar';
+ import { h, setAttr, setHidden, setStyleVar, setText, setTitle, setVariant } from './dom';
+ import { formatDuration } from './format';
+ import { activityFallback, shellLine, shellWaitIn, statusLabel } from './model';
++import { PROVIDER_NAME } from './provider';
+ import {
+   createAccountChip,
+   createActivityLine,
+@@ -100,6 +101,6 @@ export function updateAgentRow(
+   setAttr(
+     row,
+     'aria-label',
+-    `${agent.name}, ${agent.kind === 'main' ? tr('agente principal') : tr('subagente {0}', [agent.role])}, ${account?.name ?? agent.account}${agent.provider === 'codex' ? ' (Codex)' : ''}, ${statusLabel(status)}${doing ? `: ${doing}` : ''}`,
++    `${agent.name}, ${agent.kind === 'main' ? tr('agente principal') : tr('subagente {0}', [agent.role])}, ${account?.name ?? agent.account}${agent.provider && agent.provider !== 'claude' ? ` (${PROVIDER_NAME[agent.provider]})` : ''}, ${statusLabel(status)}${doing ? `: ${doing}` : ''}`,
+   );
+ }
+diff --git a/client/src/ui/styles.css b/client/src/ui/styles.css
+index 1ab6ceb..1ccfd05 100644
+--- a/client/src/ui/styles.css
++++ b/client/src/ui/styles.css
+@@ -341,7 +341,8 @@
+ 
+ /* Conta do Codex: chip "vazado" (fundo escuro, borda e letra na cor da conta) com cantos em degrau, como um pixel
+    arredondado. Lê-se de longe como "outra ferramenta" sem precisar de logotipo. */
+-.ui-acc-chip[data-provider='codex'] {
++.ui-acc-chip[data-provider='codex'],
++.ui-acc-chip[data-provider='dsh'] {
+   --step: 2px;
+   border-radius: 0;
+   background: #161b26;
+@@ -361,7 +362,8 @@
+   );
+ }
+ 
+-.ui-acc-chip--lg[data-provider='codex'] {
++.ui-acc-chip--lg[data-provider='codex'],
++.ui-acc-chip--lg[data-provider='dsh'] {
+   --step: 3px;
+ }
+ 
+diff --git a/client/src/ui/usage.ts b/client/src/ui/usage.ts
+index 35f34d0..0def096 100644
+--- a/client/src/ui/usage.ts
++++ b/client/src/ui/usage.ts
+@@ -10,9 +10,9 @@
+ import type { AccountInfo } from '../../../shared/types';
+ import type { UiContext } from './context';
+ import { h, KeyedList, setAttr, setHidden, setStyleVar, setText, setTitle, setVariant } from './dom';
+-import { FIVE_HOURS_MS, relativeTime, usageLevel, usageWindowView, WEEK_MS, type UsageWindowView } from './format';
++import { FIVE_HOURS_MS, formatTokens, relativeTime, usageLevel, usageWindowView, WEEK_MS, type UsageWindowView } from './format';
+ import { ICONS } from './icons';
+-import { isCodex } from './provider';
++import { isCodex, PROVIDER_NAME, providerOf } from './provider';
+ import { usageRowFits } from './usage-row';
+ import { createAccountChip, createProviderTag, updateAccountChip, updateProviderTag } from './widgets';
+ import { tr } from '../../../shared/i18n';
+@@ -21,6 +21,7 @@ export const SOURCE_LABEL: Record<NonNullable<AccountInfo['usage']>['source'], s
+   cache: tr('cache do /usage do Claude Code'),
+   statusline: tr('ao vivo (statusline do Claude Code)'),
+   codex: tr('arquivos do Codex'),
++  dsh: tr('tokens da sessão do DeepSeek Harness'),
+ };
+ 
+ /** Origem para mostrar: o arquivo ao vivo pode ter sido gravado pelo mod do Habblaud ou pelo tap. */
+@@ -162,6 +163,8 @@ function hasWindows(a: Pick<AccountInfo, 'usage'>): boolean {
+ export function cardState(a: Pick<AccountInfo, 'usage' | 'usageStatus'>): CardState {
+   // "Sem cota" vem antes: a leitura não traz janelas, mas não é "sem dados".
+   if (a.usage?.noQuota) return 'noquota';
++  // DSH: tokens são dados mesmo sem as janelas percentuais do Claude Code.
++  if (a.usage?.tokens) return a.usageStatus === 'ok' ? 'ok' : 'stale';
+   // Leitura sem nenhuma das janelas (ex.: cache do /usage sem números) vale como "sem dados".
+   if (!hasWindows(a)) return 'empty';
+   return a.usageStatus === 'ok' ? 'ok' : 'stale';
+@@ -337,19 +340,24 @@ export class UsageCards {
+     const r = this.refs.get(card)!;
+     const now = this.ctx.now();
+     const codex = isCodex(a);
++    const provider = providerOf(a);
+     updateAccountChip(r.chip, a);
+     setStyleVar(card, '--acc', a.color);
+     setText(r.name, a.name);
+-    updateProviderTag(r.prov, codex ? 'codex' : 'claude', a.name);
+-    setText(r.email, usageSubtitle(a));
+-    setAttr(card, 'aria-label', tr('{0}{1}: uso do plano', [a.name, codex ? ' (Codex)' : '']));
++    updateProviderTag(r.prov, provider, a.name);
++    const dshTokens = provider === 'dsh' ? a.usage?.tokens : undefined;
++    setText(r.email, provider === 'dsh'
++      ? dshTokens ? tr('{0} tokens nesta sessão', [formatTokens(dshTokens.session ?? 0)]) : tr('sessão local')
++      : usageSubtitle(a));
++    setHidden(r.how, provider === 'dsh');
++    setAttr(card, 'aria-label', tr('{0}{1}: uso do plano', [a.name, provider !== 'claude' ? ` (${PROVIDER_NAME[provider]})` : '']));
+ 
+     const usage = a.usage;
+     const state = cardState(a);
+     setVariant(card, 'is-', state);
+     const five = usage ? usageWindowView(usage.fiveHour, usage.fetchedAt, now, FIVE_HOURS_MS) : null;
+     const week = usage ? usageWindowView(usage.sevenDay, usage.fetchedAt, now, WEEK_MS) : null;
+-    const showMeters = hasWindows(a);
++    const showMeters = provider !== 'dsh' && hasWindows(a);
+     setHidden(r.meters, !showMeters);
+     if (usage && showMeters) {
+       updateMeter(r.five, five, tr('Sessão de 5 horas'));
+@@ -378,10 +386,15 @@ export class UsageCards {
+     // Sem números: "sem dados de uso" + "Como ativar" (no Codex, "Como funciona": não há o que instalar). Sem cota:
+     // a mensagem, sem botão.
+     const [msgLong, msgShort] = usageMessage(a);
+-    setText(r.msgLong, msgLong);
+-    setText(r.msgShort, msgShort);
+-    setHidden(r.msg, state !== 'empty' && state !== 'noquota');
+-    setHidden(r.how, state === 'noquota');
++    if (provider === 'dsh' && dshTokens) {
++      setText(r.msgLong, tr('5 h: {0} tokens · semana: {1}', [formatTokens(dshTokens.fiveHour), formatTokens(dshTokens.sevenDay)]));
++      setText(r.msgShort, tr('{0} tokens · 5 h', [formatTokens(dshTokens.fiveHour)]));
++    } else {
++      setText(r.msgLong, provider === 'dsh' ? tr('sessão local') : msgLong);
++      setText(r.msgShort, provider === 'dsh' ? tr('sessão local') : msgShort);
++    }
++    setHidden(r.msg, provider === 'dsh' ? !dshTokens : state !== 'empty' && state !== 'noquota');
++    setHidden(r.how, provider === 'dsh' || state === 'noquota');
+     r.msg.classList.toggle('is-noquota', state === 'noquota');
+     setTitle(r.msg, state === 'noquota' ? codexUsageNote(a, now) : '');
+     setText(r.howLong, codex ? tr('Como funciona') : tr('Como ativar'));
+@@ -393,9 +406,12 @@ export class UsageCards {
+ 
+   private updateTip(r: CardRefs, a: AccountInfo, state: CardState, five: UsageWindowView | null, week: UsageWindowView | null, now: number): void {
+     const codex = isCodex(a);
++    const provider = providerOf(a);
++    const dshTokens = provider === 'dsh' ? a.usage?.tokens : undefined;
+     setText(r.tipTitle, `${a.name}${codex && !/codex/i.test(a.name) ? ' · Codex' : ''}${a.plan ? tr(' · plano {0}', [a.plan]) : ''}`);
+     const rows: [string, string][] = [];
+     if (codex) rows.push([tr('Ferramenta'), 'Codex']);
++    if (provider === 'dsh') rows.push([tr('Ferramenta'), 'DeepSeek Harness']);
+     if (a.email) rows.push(['E-mail', a.email]);
+     if (a.organization) rows.push([tr('Organização'), a.organization]);
+     if (a.plan) rows.push([tr('Plano'), a.plan]);
+@@ -411,13 +427,28 @@ export class UsageCards {
+       if (opus) rows.push([tr('Opus (semana)'), opus.summary]);
+       if (sonnet) rows.push([tr('Sonnet (semana)'), sonnet.summary]);
+     }
++    if (dshTokens) {
++      rows.push([tr('Tokens na sessão'), formatTokens(dshTokens.session ?? 0)]);
++      rows.push([tr('Tokens em 5 h'), formatTokens(dshTokens.fiveHour)]);
++      rows.push([tr('Tokens na semana'), formatTokens(dshTokens.sevenDay)]);
++    }
+     if (u && state === 'noquota') rows.push([tr('Cota'), tr('sem cota nem créditos agora')]);
+-    if (u && (state !== 'empty' || codex)) {
++    if (u && (state !== 'empty' || codex || provider === 'dsh')) {
+       rows.push([tr('Origem'), sourceLabel(u)]);
+       rows.push([tr('Atualizado'), relativeTime(u.fetchedAt, now)]);
+     }
+     syncRows(r.tipRows, rows);
+ 
++    // DSH: tokens, não cota percentual. O passo a passo do Claude Code não vale aqui.
++    if (provider === 'dsh') {
++      setText(r.tipNote, dshTokens
++        ? tr('Tokens somados das sessões do DeepSeek Harness. O DeepSeek cobra por token: não há janela de cota de 5 h/semana como no Claude Code.')
++        : tr('Ainda não há tokens desta conta: abra uma sessão do DSH com a ponte `npm run dsh:bridge` rodando.'));
++      setHidden(r.tipNote, false);
++      setHidden(r.tipSetup, true);
++      return;
++    }
++
+     // Codex: a explicação dele, sem o passo a passo do Claude Code (não há o que instalar para o uso).
+     if (codex) {
+       const note = codexUsageNote(a, now);
+diff --git a/client/src/ui/widgets.ts b/client/src/ui/widgets.ts
+index 29059c1..20893ce 100644
+--- a/client/src/ui/widgets.ts
++++ b/client/src/ui/widgets.ts
+@@ -4,7 +4,7 @@ import type { AccountInfo, Activity, AgentInfo, AgentStatus, Provider } from '..
+ import { h, setAttr, setHidden, setStyleVar, setText, setTitle, setVariant } from './dom';
+ import { WORDMARK } from './icons';
+ import { shellDoneKind, shellLine, shellStage, statusLabel, type ShellWait } from './model';
+-import { accountChipLabel, accountProvider, fallbackShort, showsProviderTag } from './provider';
++import { accountChipLabel, accountProvider, fallbackShort, PROVIDER_NAME, providerTagLabel, showsProviderTag } from './provider';
+ import { tr } from '../../../shared/i18n';
+ 
+ /**
+@@ -20,19 +20,26 @@ export function updateAccountChip(chip: HTMLElement, account: AccountInfo | unde
+   const p = accountProvider(account, fallbackId, provider);
+   setText(chip, account?.short ?? fallbackShort(fallbackId, p));
+   setStyleVar(chip, '--acc', account?.color ?? '#8b98b3');
+-  setAttr(chip, 'data-provider', p === 'codex' ? 'codex' : null);
++  setAttr(chip, 'data-provider', p === 'codex' || p === 'dsh' ? p : null);
+   const label = accountChipLabel(account, fallbackId, p);
+   setTitle(chip, label);
+   setAttr(chip, 'aria-label', label);
+ }
+ 
+-/** Selo de texto "Codex" ao lado do nome da conta (onde há espaço: gaveta, terminal, cartão de uso, dica). */
++/** Selo de texto da ferramenta ao lado do nome da conta (onde há espaço: gaveta, terminal, cartão de uso, dica). */
+ export function createProviderTag(extra = ''): HTMLElement {
+-  return h('span', { class: `ui-prov${extra ? ` ${extra}` : ''}`, text: 'Codex', hidden: true, title: tr('Agente do Codex (OpenAI)') });
++  return h('span', { class: `ui-prov${extra ? ` ${extra}` : ''}`, hidden: true });
+ }
+ 
+-/** Mostra o selo só para o Codex (e não repete quando o nome da conta já diz "Codex"). */
++/** Mostra o selo da ferramenta (e não repete quando o nome da conta já diz a ferramenta). */
+ export function updateProviderTag(tag: HTMLElement, provider: Provider, accountName = ''): void {
++  const label = providerTagLabel(provider);
++  if (!label) {
++    setHidden(tag, true);
++    return;
++  }
++  setText(tag, label);
++  setTitle(tag, tr('Agente do {0}', [PROVIDER_NAME[provider]]));
+   setHidden(tag, !showsProviderTag(provider, accountName));
+ }
+ 
+diff --git a/mod/habblaud-dsh-inbox/README.md b/mod/habblaud-dsh-inbox/README.md
+new file mode 100644
+index 0000000..75b71de
+--- /dev/null
++++ b/mod/habblaud-dsh-inbox/README.md
+@@ -0,0 +1,37 @@
++# habblaud-dsh-inbox
++
++Plugin do **DeepSeek Harness** que liga a caixa de mensagens do Habblaud à sessão aberta do DSH. É o equivalente
++do `habblaud-mensagens` do Claude Code: a cada ~2 s pergunta ao Habblaud se há mensagem para a sessão, entrega
++como prompt (`sessionController.prompt`) e confirma a entrega.
++
++## Instalação
++
++O plugin é carregado pelo perfil do DSH, não pelo Habblaud:
++
++```bash
++cp mod/habblaud-dsh-inbox/plugin.mjs ~/.dsh/profiles/desktop/habblaud-inbox.mjs
++```
++
++Acrescente ao fim de `~/.dsh/profiles/desktop/cordis.patch.yml`:
++
++```yaml
++# Habblaud: caixa de mensagens do escritório -> sessão do DSH (plugin local).
++- insert:
++    - id: habblaud-dsh-inbox
++      name: "./habblaud-inbox.mjs"
++```
++
++O DSH recarrega o perfil sozinho (HMR) quando o arquivo muda; se não recarregar, reabra o DSH. O log fica em
++`~/.habblaud/dsh-inbox.log`.
++
++## O que ele faz
++
++- Descobre as sessões vivas em `ctx.sessions.list()` (só principais).
++- `POST http://127.0.0.1:4747/api/mod/inbox` com `{session, account: '.dsh'}`.
++- Entrega cada mensagem com `sessionController.prompt({sessionId, content, requestId, mode: 'followup'})`.
++- Confirma em `POST /api/mod/inbox/ack`.
++- Não lê credenciais e só fala com `127.0.0.1`.
++
++## Remover
++
++Apague `~/.dsh/profiles/desktop/habblaud-inbox.mjs` e o bloco `habblaud-dsh-inbox` do `cordis.patch.yml`.
+diff --git a/mod/habblaud-dsh-inbox/plugin.mjs b/mod/habblaud-dsh-inbox/plugin.mjs
+new file mode 100644
+index 0000000..e7729ab
+--- /dev/null
++++ b/mod/habblaud-dsh-inbox/plugin.mjs
+@@ -0,0 +1,126 @@
++// Plugin do DeepSeek Harness que liga a caixa de mensagens do Habblaud à sessão aberta.
++//
++// O Habblaud guarda as mensagens da página em POST /api/mod/inbox e espera o agente buscá-las a cada ~2 s.
++// Para cada sessão viva, este plugin busca as mensagens, entrega como prompt (`sessionController.prompt`) e
++// confirma em /api/mod/inbox/ack. É o equivalente do plugin `habblaud-mensagens` do Claude Code.
++import { randomUUID } from 'node:crypto';
++import { appendFileSync, mkdirSync } from 'node:fs';
++import { homedir } from 'node:os';
++import { join } from 'node:path';
++
++export const name = 'habblaud-dsh-inbox';
++/** Serviços que precisam existir para o plugin ativar. */
++export const inject = ['sessions', 'sessionController'];
++
++const LOG = join(homedir(), '.habblaud', 'dsh-inbox.log');
++const PORT = Number(process.env.HABBLAUD_PORT ?? 4747) || 4747;
++const BASE = `http://127.0.0.1:${PORT}`;
++const ACCOUNT = '.dsh';
++const POLL_MS = 2_000;
++const TIME_ZONE = Intl.DateTimeFormat().resolvedOptions().timeZone || undefined;
++
++function log(message) {
++  try {
++    mkdirSync(join(homedir(), '.habblaud'), { recursive: true });
++    appendFileSync(LOG, `${new Date().toISOString()} ${message}\n`);
++  } catch {
++    // sem log: o plugin segue
++  }
++}
++
++async function post(path, body) {
++  const res = await fetch(`${BASE}${path}`, {
++    method: 'POST',
++    headers: { 'Content-Type': 'application/json', Origin: BASE },
++    body: JSON.stringify(body),
++    signal: AbortSignal.timeout(2_500),
++  });
++  const text = await res.text();
++  let json;
++  try {
++    json = text ? JSON.parse(text) : undefined;
++  } catch {
++    json = undefined;
++  }
++  return { status: res.status, json };
++}
++
++/** Sessão principal (não subagente) e viva. */
++function isMain(session) {
++  const header = session?.header ?? {};
++  if (session?.parent || session?.parentId || session?.parentSession) return false;
++  if (header.parent || header.parentId || header.parentSession || header.parentSessionId) return false;
++  return typeof session?.id === 'string' && session.id.length > 0;
++}
++
++function textOf(message) {
++  return typeof message?.text === 'string' ? message.text : '';
++}
++
++export function apply(ctx, config = {}) {
++  const account = typeof config.account === 'string' && config.account.trim() ? config.account.trim() : ACCOUNT;
++  const controller = ctx.sessionController;
++  const sessions = ctx.sessions;
++  let stopped = false;
++  let busy = false;
++  let lastError = '';
++
++  const fail = (message) => {
++    if (message === lastError) return;
++    lastError = message;
++    log(message);
++  };
++
++  const poll = async (session) => {
++    try {
++      const res = await post('/api/mod/inbox', { session: session.id, account });
++      if (res.status !== 200 || !Array.isArray(res.json?.messages)) return;
++      const messages = res.json.messages;
++      if (!messages.length) return;
++      const results = [];
++      for (const message of messages) {
++        const text = textOf(message);
++        if (!text.trim()) {
++          results.push({ id: message.id, ok: false, error: 'mensagem vazia' });
++          continue;
++        }
++        const requestId = randomUUID();
++        try {
++          await controller.prompt(
++            { sessionId: session.id, content: [{ type: 'text', text }], requestId, mode: 'followup', ...(TIME_ZONE ? { clientTimeZone: TIME_ZONE } : {}) },
++            new AbortController().signal,
++          );
++          results.push({ id: message.id, ok: true });
++        } catch (err) {
++          results.push({ id: message.id, ok: false, error: String(err?.message ?? err).slice(0, 300) });
++        }
++      }
++      await post('/api/mod/inbox/ack', { session: session.id, results });
++      log(`entregou ${results.filter((r) => r.ok).length}/${results.length} mensagem(ns) em ${session.id}`);
++    } catch (err) {
++      fail(`inbox: ${String(err?.message ?? err).slice(0, 200)}`);
++    }
++  };
++
++  const round = async () => {
++    if (stopped || busy) return;
++    busy = true;
++    try {
++      for (const session of sessions.list()) {
++        if (!isMain(session)) continue;
++        await poll(session);
++      }
++    } finally {
++      busy = false;
++    }
++  };
++
++  log(`plugin carregado em ${BASE} (${sessions.list().length} sessão(ões))`);
++  const timer = setInterval(() => void round(), POLL_MS);
++  ctx.effect(() => () => {
++    stopped = true;
++    clearInterval(timer);
++    log('plugin descarregado');
++  }, 'habblaud-dsh-inbox.timer');
++  void round();
++}
+diff --git a/package.json b/package.json
+index 587db21..e303574 100644
+--- a/package.json
++++ b/package.json
+@@ -42,6 +42,7 @@
+     "codex:uninstall": "tsx scripts/codex-install.ts uninstall",
+     "codex:status": "tsx scripts/codex-install.ts status",
+     "codex:bridge": "tsx scripts/codex-bridge.ts",
++    "dsh:bridge": "tsx scripts/dsh-bridge.ts",
+     "remote:setup": "tsx scripts/remote-setup.ts",
+     "remote:mdns": "tsx scripts/remote-mdns.ts",
+     "release": "tsx scripts/release.ts"
+diff --git a/scripts/dsh-bridge.ts b/scripts/dsh-bridge.ts
+new file mode 100644
+index 0000000..52cd7bd
+--- /dev/null
++++ b/scripts/dsh-bridge.ts
+@@ -0,0 +1,290 @@
++#!/usr/bin/env node
++// Ponte entre o DeepSeek Harness e o Habblaud: lê as sessões do DSH (JSONL comprimido com zstd em
++// ~/.dsh/sessions/<projeto>/session-*/session.v4.jsonl.zstd) e manda os eventos para POST /api/dsh/events.
++//
++// Uso:
++//   npm run dsh:bridge                         # todas as sessões recentes do diretório atual
++//   npm run dsh:bridge -- --workspace <pasta>  # as sessões recentes daquela pasta
++//   npm run dsh:bridge -- --all                # todas as sessões abertas, de qualquer projeto
++//   npm run dsh:bridge -- --session <arquivo>  # uma sessão específica
++//
++// Só fala com 127.0.0.1. Não escreve nada na sessão do DSH: é uma ponte de observação, como os hooks do Codex.
++import { execFileSync } from 'node:child_process';
++import { existsSync, readdirSync, statSync } from 'node:fs';
++import { homedir } from 'node:os';
++import { basename, dirname, join, resolve } from 'node:path';
++
++const PORT = Number(process.env.HABBLAUD_PORT ?? 4747) || 4747;
++const POLL_MS = 700;
++const DISCOVER_MS = 5_000;
++/** Sessões mais velhas que isto ficam de fora (o escritório mostra o dia, não o histórico inteiro). */
++const MAX_AGE_MS = 24 * 3600_000;
++const SESSIONS_DIR = join(homedir(), '.dsh', 'sessions');
++/** Eventos que o servidor entende (o resto do JSONL é ruído de execução). */
++const SEND = new Set([
++  'session',
++  'turn/start',
++  'turn/end',
++  'user/message',
++  'assistant/message',
++  'tool/call',
++  'tool/result',
++  'approval/asked',
++  'approval/decided',
++  'session/title',
++  'session/end',
++]);
++
++interface Args {
++  session?: string;
++  workspace?: string;
++  all?: boolean;
++}
++
++function parseArgs(argv: string[]): Args {
++  const out: Args = {};
++  for (let i = 0; i < argv.length; i++) {
++    if (argv[i] === '--session') out.session = argv[++i];
++    else if (argv[i] === '--workspace') out.workspace = argv[++i];
++    else if (argv[i] === '--all') out.all = true;
++  }
++  return out;
++}
++
++function zstd(file: string): string {
++  return execFileSync('zstd', ['-dc', file], { maxBuffer: 128 * 1024 * 1024 }).toString('utf8');
++}
++
++function headerOf(file: string): Record<string, unknown> | undefined {
++  try {
++    const first = zstd(file).split('\n', 1)[0];
++    return first ? (JSON.parse(first) as Record<string, unknown>) : undefined;
++  } catch {
++    return undefined;
++  }
++}
++
++interface SessionFile {
++  file: string;
++  mtime: number;
++}
++
++/**
++ * A sessão está aberta? O DSH mantém `session.lock` aberto pelo processo enquanto a sessão vive (o arquivo existe
++ * para sempre; quem manda é o lsof). Sem lsof, vale a atividade recente.
++ */
++function isOpen(file: string, mtime: number): boolean {
++  const lock = join(dirname(file), 'session.lock');
++  if (existsSync(lock)) {
++    try {
++      const out = execFileSync('lsof', ['-t', lock], { stdio: ['ignore', 'pipe', 'ignore'] }).toString().trim();
++      if (out) return true;
++      // lsof rodou e não achou dono: a sessão está fechada.
++      return false;
++    } catch {
++      // lsof sem resultado (ou sem lsof): cai na atividade recente.
++    }
++  }
++  return Date.now() - mtime < 10 * 60_000;
++}
++
++/** Sessões do DSH modificadas recentemente (e, com `workspace`, só as daquela pasta). */
++function discover(workspace: string, only?: string, all = false): SessionFile[] {
++  if (only) return [{ file: only, mtime: Date.now() }];
++  if (!existsSync(SESSIONS_DIR)) return [];
++  const now = Date.now();
++  const files: SessionFile[] = [];
++  for (const dir of readdirSync(SESSIONS_DIR)) {
++    const projectDir = join(SESSIONS_DIR, dir);
++    let entries: string[];
++    try {
++      if (!statSync(projectDir).isDirectory()) continue;
++      entries = readdirSync(projectDir);
++    } catch {
++      continue;
++    }
++    for (const entry of entries) {
++      const file = join(projectDir, entry, 'session.v4.jsonl.zstd');
++      try {
++        const st = statSync(file);
++        if (st.isFile() && now - st.mtimeMs < MAX_AGE_MS && isOpen(file, st.mtimeMs)) files.push({ file, mtime: st.mtimeMs });
++      } catch {
++        // sem sessão nesta pasta
++      }
++    }
++  }
++  files.sort((a, b) => b.mtime - a.mtime);
++  const matching: SessionFile[] = [];
++  for (const f of files) {
++    const head = headerOf(f.file);
++    const cwd = typeof head?.cwd === 'string' ? resolve(head.cwd) : '';
++    if (all || cwd === workspace) matching.push(f);
++  }
++  return matching;
++}
++
++const post = async (body: unknown): Promise<void> => {
++  await fetch(`http://127.0.0.1:${PORT}/api/dsh/events`, {
++    method: 'POST',
++    headers: { 'Content-Type': 'application/json', Origin: `http://127.0.0.1:${PORT}` },
++    body: JSON.stringify(body),
++    signal: AbortSignal.timeout(4_000),
++  });
++};
++
++class SessionBridge {
++  private cursor = 0;
++  private size = -1;
++  private mtime = -1;
++  private sessionId = '';
++  private cwd = '';
++  private stopped = false;
++  private lastError = 0;
++
++  constructor(readonly file: string) {}
++
++  private async send(event: Record<string, unknown>): Promise<void> {
++    if (!this.sessionId) return;
++    try {
++      await post({ sessionId: this.sessionId, cwd: this.cwd, event });
++    } catch {
++      if (Date.now() - this.lastError > 60_000) {
++        this.lastError = Date.now();
++        process.stderr.write(`[dsh-bridge] Habblaud fora do ar em 127.0.0.1:${PORT}; sigo tentando.\n`);
++      }
++    }
++  }
++
++  /** Lê o arquivo inteiro, processa as linhas novas e manda os eventos relevantes. */
++  async poll(): Promise<void> {
++    let st;
++    try {
++      st = statSync(this.file);
++    } catch {
++      return;
++    }
++    if (st.size === this.size && st.mtimeMs === this.mtime) return;
++    this.size = st.size;
++    this.mtime = st.mtimeMs;
++    let text: string;
++    try {
++      text = zstd(this.file);
++    } catch {
++      return;
++    }
++    const lines = text.split('\n');
++    if (lines.length < this.cursor) this.cursor = 0; // arquivo compactado/reescrito
++    if (!this.sessionId) {
++      const head = lines.find((l) => l.includes('"type":"session"'));
++      if (!head) return;
++      try {
++        const h = JSON.parse(head) as Record<string, unknown>;
++        this.sessionId = String(h.id ?? '');
++        this.cwd = String(h.cwd ?? '');
++      } catch {
++        return;
++      }
++    }
++    for (let i = this.cursor; i < lines.length; i++) {
++      const line = lines[i];
++      if (!line) continue;
++      let event: Record<string, unknown>;
++      try {
++        event = JSON.parse(line) as Record<string, unknown>;
++      } catch {
++        continue;
++      }
++      if (!SEND.has(String(event.type ?? ''))) continue;
++      await this.send(event);
++    }
++    this.cursor = lines.length;
++  }
++
++  /** O escritório reiniciou: relê a sessão desde o começo para o personagem voltar. */
++  reset(): void {
++    this.cursor = 0;
++    this.size = -1;
++    this.mtime = -1;
++  }
++
++  async stop(): Promise<void> {
++    if (this.stopped) return;
++    this.stopped = true;
++    await this.send({ type: 'bridge/stop', time: Date.now(), data: {} });
++  }
++
++  /** Sessão fechada no DSH: o personagem vai embora do escritório. */
++  async close(): Promise<void> {
++    if (this.stopped) return;
++    this.stopped = true;
++    await this.send({ type: 'session/end', time: Date.now(), data: {} });
++  }
++}
++
++const args = parseArgs(process.argv.slice(2));
++const workspace = resolve(args.workspace ?? process.cwd());
++const bridges = new Map<string, SessionBridge>();
++let lastDiscover = 0;
++let lastBoot: number | undefined;
++let lastBootCheck = 0;
++
++/** `bootAt` do /api/health: se mudou, o servidor reiniciou e as sessões precisam ser reenviadas. */
++async function checkBoot(): Promise<void> {
++  if (Date.now() - lastBootCheck < 10_000) return;
++  lastBootCheck = Date.now();
++  try {
++    const res = await fetch(`http://127.0.0.1:${PORT}/api/health`, { signal: AbortSignal.timeout(2_000) });
++    if (!res.ok) return;
++    const health = (await res.json()) as { bootAt?: number };
++    if (typeof health.bootAt !== 'number') return;
++    if (lastBoot !== undefined && lastBoot !== health.bootAt) {
++      for (const b of bridges.values()) b.reset();
++      process.stderr.write('[dsh-bridge] Habblaud reiniciou; reenviando as sessões.\n');
++    }
++    lastBoot = health.bootAt;
++  } catch {
++    // fora do ar: tenta na próxima
++  }
++}
++
++async function refresh(force: boolean): Promise<void> {
++  if (!force && Date.now() - lastDiscover < DISCOVER_MS) return;
++  lastDiscover = Date.now();
++  const found = discover(workspace, args.session ? resolve(args.session) : undefined, args.all === true);
++  const active = new Set(found.map((f) => f.file));
++  for (const { file } of found) {
++    if (!bridges.has(file)) {
++      bridges.set(file, new SessionBridge(file));
++      process.stderr.write(`[dsh-bridge] observando ${file}\n`);
++    }
++  }
++  if (!args.session) {
++    for (const [file, bridge] of bridges) {
++      if (active.has(file)) continue;
++      bridges.delete(file);
++      process.stderr.write(`[dsh-bridge] sessão encerrada: ${basename(dirname(file))}\n`);
++      await bridge.close();
++    }
++  }
++}
++
++await refresh(true);
++if (!bridges.size) {
++  process.stderr.write(`[dsh-bridge] nenhuma sessão do DSH em ${workspace}. Use --session <arquivo> ou abra uma sessão do DSH.\n`);
++  process.exit(1);
++}
++
++let running = true;
++for (const sig of ['SIGINT', 'SIGTERM'] as const) {
++  process.on(sig, () => {
++    running = false;
++    void Promise.all([...bridges.values()].map((b) => b.stop())).finally(() => process.exit(0));
++  });
++}
++
++while (running) {
++  await checkBoot();
++  await refresh(false);
++  for (const bridge of bridges.values()) await bridge.poll();
++  await new Promise((r) => setTimeout(r, POLL_MS));
++}
+diff --git a/server/accounts/detect.ts b/server/accounts/detect.ts
+index ead19ac..0a27d5d 100644
+--- a/server/accounts/detect.ts
++++ b/server/accounts/detect.ts
+@@ -219,6 +219,11 @@ const ALIAS_TOOLS: Record<Provider, { invokes: RegExp; dir: RegExp }> = {
+     invokes: /(?:^|[\s;&|(])(?:[\w.~/-]*\/)?codex(?=$|[\s;&|)])/,
+     dir: /\bCODEX_HOME=(?:"([^"]*)"|'([^']*)'|([^\s;&|]+))/,
+   },
++  // O DSH ainda não tem um comando de shell com pasta de conta; a entrada só completa o mapa.
++  dsh: {
++    invokes: /(?:^|[\s;&|(])(?:[\w.~/-]*\/)?dsh(?=$|[\s;&|)])/,
++    dir: /\bDSH_HOME=(?:"([^"]*)"|'([^']*)'|([^\s;&|]+))/,
++  },
+ };
+ 
+ /**
+diff --git a/server/dsh/http.ts b/server/dsh/http.ts
+new file mode 100644
+index 0000000..df92084
+--- /dev/null
++++ b/server/dsh/http.ts
+@@ -0,0 +1,25 @@
++// Eventos da ponte do DeepSeek Harness (POST /api/dsh/events). A ponte `npm run dsh:bridge` roda no mesmo
++// computador, lê a sessão do DSH e manda um evento por vez. Como os eventos do Codex, só observam e só valem vindos
++// do próprio computador (a trava de Host/conexão é conferida em http/app.ts).
++import type { IncomingMessage, ServerResponse } from 'node:http';
++import { HttpError, readJson, sendJson } from '../http/app';
++import { parseDshEvent, type DshLive } from '../sources/dsh/source';
++import { tr } from '../../shared/i18n';
++
++export async function handleDshEvent(req: IncomingMessage, res: ServerResponse, deps: { live?: DshLive }): Promise<void> {
++  let body;
++  try {
++    body = parseDshEvent(await readJson(req));
++  } catch (err) {
++    throw new HttpError(400, err instanceof Error ? err.message : tr('evento inválido'));
++  }
++  let ok = false;
++  if (deps.live) {
++    try {
++      ok = deps.live.applyEvent(body) === true;
++    } catch {
++      ok = false;
++    }
++  }
++  sendJson(res, 200, { ok });
++}
+diff --git a/server/http/app.ts b/server/http/app.ts
+index c323b43..5e7686a 100644
+--- a/server/http/app.ts
++++ b/server/http/app.ts
+@@ -4,9 +4,11 @@ import { NAME_MAX, parseAppearanceParts, parseCharacterName, parseSeed } from '.
+ import type { AccessInfo, AgentInfo, ModSummary, OfficeSnapshot, SourceInfo, UpdateStatus } from '../../shared/types';
+ import type { AccountsService } from '../accounts/service';
+ import { handleCodexEvent } from '../codex/http';
++import { handleDshEvent } from '../dsh/http';
+ import type { DayStatsService } from '../history/daystats';
+ import type { Office } from '../model/office';
+ import type { CodexLive } from '../sources/codex/live';
++import type { DshLive } from '../sources/dsh/source';
+ import type { SessionLookup } from '../sources/source';
+ import { isJsonContentType, isLoopbackHost } from './guard';
+ import type { RemoteFeature } from './remote';
+@@ -29,6 +31,8 @@ export interface ApiDeps {
+   accounts: AccountsService;
+   sources: () => SourceInfo[];
+   version: string;
++  /** Quando este processo subiu (epoch ms): a ponte do DSH usa para saber que o escritório reiniciou. */
++  bootAt?: number;
+   inDocker: boolean;
+   /** Terminal ligado (ServerConfig.terminal: só com bind local). */
+   terminal?: boolean;
+@@ -63,6 +67,11 @@ export interface ApiDeps {
+    * não dependem da trava do terminal).
+    */
+   codexLive?: CodexLive;
++  /**
++   * Fonte do DeepSeek Harness: recebe os eventos da ponte `npm run dsh:bridge` (POST /api/dsh/events). Sem ela a rota
++   * responde {ok: false}. Só observa e só vale pelo próprio computador, como os eventos do Codex.
++   */
++  dshLive?: DshLive;
+   /** Novo agente pelo escritório (/api/spawn e, para o auxiliar do host, /api/host/spawn/*; server/spawn/spawn.ts). */
+   spawn?: SpawnService;
+   /** Pastas sugeridas no "Novo agente" (GET /api/spawn/folders; spawn/folders.ts): projetos recentes. */
+@@ -376,6 +385,8 @@ export function createApiHandler(deps: ApiDeps): (req: IncomingMessage, res: Ser
+           pty: !!deps.pty && !remote,
+           messages: !!deps.messages && (!remote || trusted(req, 'messages')),
+           codexEvents: !!deps.codexLive,
++          dshEvents: !!deps.dshLive,
++          bootAt: deps.bootAt,
+           updates: updatesSummary(deps.updates?.status()),
+           sources: deps.sources(),
+           accounts: accounts.allEntries().map((a) =>
+@@ -489,6 +500,15 @@ export function createApiHandler(deps: ApiDeps): (req: IncomingMessage, res: Ser
+       } else handleCodexEvent(req, res, { live: deps.codexLive, entries: () => accounts.entriesOf('codex') }).catch((err) => fail(res, err));
+       return true;
+     }
++    if (path === '/api/dsh/events') {
++      // Eventos da ponte do DeepSeek Harness: mesma trava dos eventos do Codex (só observam e só valem pelo próprio
++      // computador; no Docker a ponte chega pela porta publicada).
++      if (method !== 'POST') methodNotAllowed(res, 'POST');
++      else if (!trusted(req) || (!deps.inDocker && !isLoopbackAddress(req.socket.remoteAddress))) {
++        sendJson(res, 403, { error: denied(req, tr('eventos do DeepSeek Harness só são aceitos pelo próprio computador (http://localhost ou http://127.0.0.1)')) });
++      } else handleDshEvent(req, res, { live: deps.dshLive }).catch((err) => fail(res, err));
++      return true;
++    }
+     if (path === '/api/spawn' || path.startsWith('/api/spawn/')) {
+       // Abre uma sessão nova no app do Claude: roda código no computador, então a mesma trava das mensagens.
+       const spawn = deps.spawn;
+diff --git a/server/index.ts b/server/index.ts
+index 227e0e5..c56c38b 100644
+--- a/server/index.ts
++++ b/server/index.ts
+@@ -37,6 +37,7 @@ import { ClaudeWatcher } from './sources/watcher';
+ import { discoverCodexDirs } from './sources/codex/accounts';
+ import { CodexHistory } from './sources/codex/history';
+ import { CodexSource } from './sources/codex/source';
++import { DshSource } from './sources/dsh/source';
+ import { createBuildReader, readBuildInfo } from './build';
+ import { UpdateChecker } from './updates/checker';
+ import { getLocale, tr } from '../shared/i18n';
+@@ -141,6 +142,10 @@ if (codex) agents.add(codex);
+ // Eventos dos hooks do Codex (POST /api/codex/events, mod/habblaud-codex/hook.mjs): vão para a fonte do Codex ao vivo
+ // (CodexLive); sem ela (nenhuma pasta do Codex ou HABBLAUD_CODEX=0) a rota responde {ok: false}.
+ const codexLive: CodexLive | undefined = codex;
++// Fonte do DeepSeek Harness: não lê arquivos (o DSH não tem um transcript no formato do Habblaud). Os eventos chegam
++// da ponte `npm run dsh:bridge` em POST /api/dsh/events e são aplicados por ela, como os hooks do Codex.
++const dsh = new DshSource({ accounts, office, home: config.home, dataDir: config.dataDir });
++agents.add(dsh);
+ late.office = office;
+ late.agents = agents;
+ // Página que pode responder pelo escritório: Host local na porta local; na remota, só com permissions liberado.
+@@ -372,6 +377,8 @@ const api = createApiHandler({
+     return recentFolders(history ? await history.list().catch(() => []) : [], rooms);
+   },
+   codexLive,
++  dshLive: dsh,
++  bootAt: startedAt,
+   stats,
+   updates,
+   remote: config.remote ? { is: isRemoteRequest, allows: (f) => config.remote!.allow.has(f) } : undefined,
+diff --git a/server/sources/dsh/source.ts b/server/sources/dsh/source.ts
+new file mode 100644
+index 0000000..ab99dd3
+--- /dev/null
++++ b/server/sources/dsh/source.ts
+@@ -0,0 +1,387 @@
++// Fonte do DeepSeek Harness (AgentSource 'dsh'): diferente do Claude Code e do Codex, o DSH não grava um
++// transcript que o servidor saiba ler. A ponte `npm run dsh:bridge` lê a sessão do DSH (JSONL comprimido com zstd)
++// e manda os eventos já normalizados para POST /api/dsh/events; esta fonte mantém o agente no escritório.
++//
++// Só observa: não responde permissões nem manda mensagens para a sessão. O status 'waiting' aparece quando o DSH
++// grava `approval/asked` (a resposta continua sendo no terminal do DSH).
++import { appendFileSync, existsSync, mkdirSync, writeFileSync } from 'node:fs';
++import { homedir } from 'node:os';
++import { join } from 'node:path';
++import type { Activity, AgentStatus, SourceInfo } from '../../../shared/types';
++import { SPECIAL, describeTool, truncate } from '../../../shared/activity';
++import type { AccountsService } from '../../accounts/service';
++import type { Office } from '../../model/office';
++import type { AgentSource } from '../source';
++import type { TerminalParser } from '../terminal';
++import { DshTerminalParser } from './terminal';
++import { tr } from '../../../shared/i18n';
++
++export const DSH_ACCOUNT = '.dsh';
++const MAIN_ROLE = tr('Agente principal (DeepSeek Harness)');
++const MAX_EVENT = 200_000;
++
++export interface DshEventBody {
++  /** Id da sessão do DSH (o mesmo `session-...` da pasta em ~/.dsh/sessions). */
++  sessionId: string;
++  /** Pasta do projeto, como o DSH gravou no cabeçalho da sessão. */
++  cwd?: string;
++  /** O evento cru do DSH: {type, time, data, seq}. */
++  event: Record<string, unknown>;
++}
++
++export interface DshLive {
++  applyEvent(body: DshEventBody): boolean;
++}
++
++interface Tracker {
++  key: string;
++  sessionId: string;
++  cwd: string;
++  inOffice: boolean;
++  status: AgentStatus;
++  waitingFor?: string;
++  startedAt: number;
++  turnStart?: number;
++  lastAt: number;
++  lastEventAt: number;
++  title?: string;
++  toolName?: string;
++  /** Tokens somados desta sessão (assistant/message). */
++  tokens?: number;
++}
++
++export interface DshSourceOptions {
++  accounts: AccountsService;
++  office: Office;
++  home?: string;
++  /** Pasta de dados do Habblaud (o espelho JSONL do terminal fica em <dataDir>/dsh). */
++  dataDir?: string;
++  now?: () => number;
++}
++
++function rec(v: unknown): Record<string, unknown> | undefined {
++  return v && typeof v === 'object' && !Array.isArray(v) ? (v as Record<string, unknown>) : undefined;
++}
++
++function str(v: unknown): string | undefined {
++  return typeof v === 'string' && v.trim() ? v.trim() : undefined;
++}
++
++function textOf(content: unknown): string {
++  if (!Array.isArray(content)) return '';
++  for (const part of content) {
++    const p = rec(part);
++    if (p?.type === 'text' && typeof p.text === 'string') return p.text;
++  }
++  return '';
++}
++
++/** Nomes de ferramenta do DSH (minúsculos) para os nomes que o Habblaud já sabe descrever. */
++const TOOL_NAMES: Record<string, string> = {
++  bash: 'Bash',
++  read: 'Read',
++  edit: 'Edit',
++  write: 'Write',
++  glob: 'Glob',
++  grep: 'Grep',
++  web_search: 'WebSearch',
++  web_fetch: 'WebFetch',
++  todo_write: 'TodoWrite',
++  subagent: 'Agent',
++  workflow: 'Workflow',
++  task: 'Task',
++};
++
++const RELEVANT = new Set([
++  'session',
++  'turn/start',
++  'turn/end',
++  'user/message',
++  'assistant/message',
++  'tool/call',
++  'tool/result',
++  'approval/asked',
++  'approval/decided',
++  'session/title',
++  'session/end',
++  'bridge/stop',
++]);
++
++const ZERO_STATS = { toolCalls: 0, tokensIn: 0, tokensOut: 0, subagents: 0 };
++
++export class DshSource implements AgentSource, DshLive {
++  readonly provider = 'dsh' as const;
++  private readonly trackers = new Map<string, Tracker>();
++  /** Contador de atividades: mantém os ids estáveis numa releitura da mesma sessão (a ponte reenvia desde o começo). */
++  private actSeq = 0;
++  private readonly now: () => number;
++  private readonly account: string;
++  private readonly dir: string;
++  /** O log do DSH é zstd; o terminal do Habblaud lê JSONL, então a fonte mantém um espelho em texto. */
++  private readonly mirrorDir: string;
++  /** Amostras de tokens para as janelas de 5 h e 7 dias (replay da ponte). */
++  private usageSamples: Array<{ at: number; tokens: number }> = [];
++
++  constructor(private readonly opts: DshSourceOptions) {
++    this.now = opts.now ?? Date.now;
++    this.dir = join(opts.home ?? homedir(), '.dsh');
++    this.mirrorDir = join(opts.dataDir ?? join(homedir(), '.habblaud'), 'dsh');
++    const entries = opts.accounts.setProviderAccounts('dsh', [
++      {
++        dir: this.dir,
++        detected: { id: DSH_ACCOUNT, configDir: '~/.dsh', short: 'D', name: 'DeepSeek Harness', color: '#4d6bfe' },
++      },
++    ]);
++    this.account = entries[0]?.id ?? DSH_ACCOUNT;
++  }
++
++  start(): void {
++    // Nada para reconstruir: a ponte reenvia a sessão desde o começo quando sobe.
++    this.opts.office.beginBoot();
++    this.opts.office.endBoot();
++  }
++
++  stop(): void {
++    for (const t of this.trackers.values()) {
++      if (t.inOffice) this.opts.office.closeMain(t.key);
++      t.inOffice = false;
++    }
++  }
++
++  sources(): SourceInfo[] {
++    const sessions = [...this.trackers.values()].filter((t) => t.inOffice).length;
++    return [{ label: DSH_ACCOUNT, provider: 'dsh', path: '~/.dsh', sessions, ok: true }];
++  }
++
++  applyEvent(body: DshEventBody): boolean {
++    try {
++      const event = rec(body.event);
++      const type = str(event?.type);
++      if (!event || !type || !RELEVANT.has(type)) return false;
++      const data = rec(event.data) ?? {};
++      const at = typeof event.time === 'number' && Number.isFinite(event.time) ? event.time : this.now();
++      const t = this.touch(body.sessionId, body.cwd, at);
++      if (!t) return false;
++      this.mirror(body.sessionId, event, type === 'session');
++      const live = this.now() - at < 120_000;
++
++      switch (type) {
++        case 'session': {
++          const title = str(data.title);
++          if (title) this.setTitle(t, title);
++          break;
++        }
++        case 'session/title': {
++          const title = str(data.title);
++          if (title) this.setTitle(t, title);
++          break;
++        }
++        case 'turn/start': {
++          t.turnStart ??= at;
++          this.decide(t, 'working', at);
++          break;
++        }
++        case 'user/message': {
++          t.turnStart = at;
++          this.decide(t, 'working', at);
++          const text = textOf(data.content);
++          if (text) this.act(t, { kind: 'prompt', icon: '📝', text: truncate(text, 46), detail: truncate(text, 300) }, at, live);
++          break;
++        }
++        case 'assistant/message': {
++          const message = rec(data.message);
++          const text = textOf(message?.content);
++          if (text) this.act(t, SPECIAL.respond(truncate(text, 300)), at, live);
++          const usage = rec(data.usage);
++          const total = typeof usage?.totalTokens === 'number'
++            ? usage.totalTokens
++            : (typeof usage?.inputTokens === 'number' ? usage.inputTokens : 0) + (typeof usage?.outputTokens === 'number' ? usage.outputTokens : 0);
++          if (total > 0) {
++            t.tokens = (t.tokens ?? 0) + total;
++            this.usageSamples.push({ at, tokens: total });
++            this.publishUsage(at);
++          }
++          break;
++        }
++        case 'tool/call': {
++          this.decide(t, 'working', at);
++          const raw = str(data.name) ?? 'ferramenta';
++          const name = TOOL_NAMES[raw] ?? raw;
++          let input: unknown = data.arguments;
++          if (typeof input === 'string') {
++            try {
++              input = JSON.parse(input);
++            } catch {
++              input = { command: input };
++            }
++          }
++          t.toolName = name;
++          const desc = describeTool(name, input);
++          this.act(t, { kind: desc.kind, icon: desc.icon, text: desc.text, ...(desc.detail ? { detail: desc.detail } : {}), tool: name }, at, live);
++          break;
++        }
++        case 'tool/result': {
++          const message = rec(data.message);
++          if (message?.isError === true) {
++            this.act(t, SPECIAL.error(t.toolName, truncate(textOf(message.content), 300)), at, live);
++          }
++          break;
++        }
++        case 'approval/asked': {
++          this.decide(t, 'waiting', at, tr('responder no terminal'));
++          this.act(t, SPECIAL.waiting(tr('aprovar no terminal')), at, live);
++          break;
++        }
++        case 'approval/decided': {
++          this.decide(t, 'working', at);
++          break;
++        }
++        case 'turn/end': {
++          const took = t.turnStart ? at - t.turnStart : undefined;
++          t.turnStart = undefined;
++          this.decide(t, 'idle', at);
++          this.act(t, SPECIAL.turnDone(took), at, live);
++          break;
++        }
++        case 'session/end': {
++          if (t.inOffice) this.opts.office.closeMain(t.key);
++          t.inOffice = false;
++          this.publishUsage(at);
++          break;
++        }
++        case 'bridge/stop': {
++          this.decide(t, 'idle', at);
++          break;
++        }
++        default:
++          return false;
++      }
++      return true;
++    } catch {
++      return false;
++    }
++  }
++
++  /** Cria/atualiza o tracker e garante o agente no escritório. Sem `cwd` não há sala: só entra quando a ponte manda. */
++  private touch(sessionId: string, cwd: string | undefined, at: number): Tracker | undefined {
++    const id = str(sessionId);
++    if (!id) return undefined;
++    const key = `dsh:${id}`;
++    let t = this.trackers.get(key);
++    if (!t) {
++      if (!cwd) return undefined;
++      t = {
++        key,
++        sessionId: id,
++        cwd,
++        inOffice: false,
++        status: 'idle',
++        startedAt: at,
++        lastAt: at,
++        lastEventAt: at,
++      };
++      this.trackers.set(key, t);
++    } else if (cwd && cwd !== t.cwd) {
++      t.cwd = cwd;
++    }
++    t.lastAt = at;
++    t.lastEventAt = at;
++    this.enter(t, at);
++    return t;
++  }
++
++  private enter(t: Tracker, at: number): void {
++    const office = this.opts.office;
++    if (t.inOffice && !office.has(t.key)) t.inOffice = false;
++    if (t.inOffice) return;
++    office.addMain({
++      id: t.key,
++      provider: 'dsh',
++      account: this.account,
++      sessionId: t.sessionId,
++      cwd: t.cwd,
++      role: MAIN_ROLE,
++      startedAt: t.startedAt,
++      status: t.status,
++      waitingFor: t.waitingFor,
++    });
++    t.inOffice = office.has(t.key);
++    if (!t.inOffice) return;
++    office.setStatus(t.key, t.status, t.waitingFor);
++    if (t.title) office.applyTranscript(t.key, { title: t.title, tasks: [], stats: ZERO_STATS });
++    void at;
++  }
++
++  private decide(t: Tracker, status: AgentStatus, at: number, waitingFor?: string): void {
++    t.status = status;
++    t.waitingFor = status === 'waiting' ? waitingFor : undefined;
++    t.lastAt = Math.max(t.lastAt, at);
++    if (t.inOffice) this.opts.office.setStatus(t.key, status, waitingFor);
++  }
++
++  /** Espelha o evento cru em JSONL (o terminal lê esse arquivo; o log original é zstd). */
++  private mirror(sessionId: string, event: Record<string, unknown>, reset: boolean): void {
++    try {
++      mkdirSync(this.mirrorDir, { recursive: true });
++      const file = join(this.mirrorDir, `${sessionId.replace(/[^\w.-]/g, '_')}.jsonl`);
++      const line = JSON.stringify(event) + '\n';
++      if (reset) writeFileSync(file, line);
++      else appendFileSync(file, line);
++    } catch {
++      // sem espelho o terminal não abre, mas a atividade continua
++    }
++  }
++
++  private trackOf(agentId: string): Tracker | undefined {
++    return this.trackers.get(agentId);
++  }
++
++  transcriptPathOf(agentId: string): string | undefined {
++    const t = this.trackOf(agentId);
++    if (!t) return undefined;
++    const file = join(this.mirrorDir, `${t.sessionId.replace(/[^\w.-]/g, '_')}.jsonl`);
++    return existsSync(file) ? file : undefined;
++  }
++
++  terminalParser(agentId: string): TerminalParser | undefined {
++    const t = this.trackOf(agentId);
++    return t ? new DshTerminalParser(t.cwd) : undefined;
++  }
++
++  /** Publica o uso em tokens da conta (5 h, 7 dias e sessões abertas). Não é cota percentual: são contagens. */
++  private publishUsage(at: number): void {
++    const now = this.now();
++    const cutoff7 = now - 7 * 24 * 3600_000;
++    this.usageSamples = this.usageSamples.filter((s) => s.at >= cutoff7);
++    const fiveHour = this.usageSamples.filter((s) => s.at >= now - 5 * 3600_000).reduce((n, s) => n + s.tokens, 0);
++    const sevenDay = this.usageSamples.reduce((n, s) => n + s.tokens, 0);
++    const session = [...this.trackers.values()].filter((t) => t.inOffice).reduce((n, t) => n + (t.tokens ?? 0), 0);
++    this.opts.accounts.setUsage(this.account, {
++      source: 'dsh',
++      fetchedAt: Math.max(now, at),
++      tokens: { fiveHour, sevenDay, session },
++    });
++  }
++
++  private setTitle(t: Tracker, title: string): void {
++    if (t.title === title) return;
++    t.title = title;
++    if (t.inOffice) this.opts.office.applyTranscript(t.key, { title, tasks: [], stats: ZERO_STATS });
++  }
++
++  private act(t: Tracker, act: Omit<Activity, 'id' | 'at'>, at: number, feed: boolean): void {
++    if (!t.inOffice) return;
++    const id = `${t.key}#${at.toString(36)}:${++this.actSeq}`;
++    this.opts.office.addActivity(t.key, { id, at, ...act }, true, { feed });
++  }
++}
++
++export function parseDshEvent(raw: unknown): DshEventBody {
++  const body = rec(raw);
++  const event = rec(body?.event);
++  const sessionId = str(body?.sessionId);
++  const cwd = str(body?.cwd);
++  if (!sessionId || !event) throw new Error('esperado {sessionId, cwd?, event: {type, ...}}');
++  if (JSON.stringify(event).length > MAX_EVENT) throw new Error('evento grande demais');
++  return { sessionId, ...(cwd ? { cwd } : {}), event };
++}
+diff --git a/server/sources/dsh/terminal.ts b/server/sources/dsh/terminal.ts
+new file mode 100644
+index 0000000..8f776e9
+--- /dev/null
++++ b/server/sources/dsh/terminal.ts
+@@ -0,0 +1,191 @@
++// Terminal do DeepSeek Harness: lê o espelho JSONL dos eventos da sessão (o log original é zstd) e monta a
++// conversa como o Habblaud mostra para Claude Code e Codex: prompt, resposta, ferramentas, resultados e avisos.
++import type { TerminalEntry, TerminalInputKind } from '../../../shared/types';
++import { maskSecrets } from '../../../shared/activity';
++import { marked, oneLine, prepare, toolView, RESULT_MAX, RESULT_MAX_LINES, TEXT_MAX, type TerminalParser } from '../terminal';
++import { tr } from '../../../shared/i18n';
++
++type Rec = Record<string, unknown>;
++type ToolEntry = Extract<TerminalEntry, { kind: 'tool' }>;
++type ResultEntry = Extract<TerminalEntry, { kind: 'result' }>;
++
++const SEEN_MAX = 20_000;
++
++function rec(v: unknown): Rec | undefined {
++  return v && typeof v === 'object' && !Array.isArray(v) ? (v as Rec) : undefined;
++}
++
++function str(v: unknown): string | undefined {
++  return typeof v === 'string' && v.trim() ? v : undefined;
++}
++
++function textOf(content: unknown): string {
++  if (typeof content === 'string') return content;
++  if (!Array.isArray(content)) return '';
++  return content
++    .map((part) => {
++      const p = rec(part);
++      return p?.type === 'text' && typeof p.text === 'string' ? p.text : '';
++    })
++    .filter(Boolean)
++    .join('\n');
++}
++
++/** Nomes minúsculos do DSH para os nomes que o toolView do Habblaud conhece. */
++const TOOL_NAMES: Record<string, string> = {
++  bash: 'Bash',
++  read: 'Read',
++  edit: 'Edit',
++  write: 'Write',
++  glob: 'Glob',
++  grep: 'Grep',
++  web_search: 'WebSearch',
++  web_fetch: 'WebFetch',
++  todo_write: 'TodoWrite',
++  subagent: 'Agent',
++  workflow: 'Workflow',
++  task: 'Task',
++};
++
++function parseArgs(raw: unknown): Rec {
++  if (raw && typeof raw === 'object' && !Array.isArray(raw)) return raw as Rec;
++  if (typeof raw === 'string' && raw.trim()) {
++    try {
++      const parsed = JSON.parse(raw);
++      return parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? (parsed as Rec) : { command: raw };
++    } catch {
++      return { command: raw };
++    }
++  }
++  return {};
++}
++
++export class DshTerminalParser implements TerminalParser {
++  private out: TerminalEntry[] = [];
++  private readonly seen = new Set<string>();
++  private readonly cwd?: string;
++  private lastAt?: number;
++
++  constructor(cwd?: string) {
++    this.cwd = cwd;
++  }
++
++  push(line: string): TerminalEntry[] {
++    this.out = [];
++    if (line.length < 2) return this.out;
++    try {
++      this.line(line);
++    } catch {
++      // evento estranho: o que já saiu dele vale; a leitura segue
++    }
++    return this.out;
++  }
++
++  private emit(e: TerminalEntry): void {
++    if (this.seen.has(e.id)) return;
++    this.seen.add(e.id);
++    if (this.seen.size > SEEN_MAX) this.seen.delete(this.seen.values().next().value as string);
++    this.out.push(e);
++  }
++
++  private line(raw: string): void {
++    let parsed: unknown;
++    try {
++      parsed = JSON.parse(raw);
++    } catch {
++      return;
++    }
++    const event = rec(parsed);
++    if (!event) return;
++    const type = str(event.type);
++    if (!type) return;
++    const data = rec(event.data) ?? {};
++    const at = typeof event.time === 'number' && Number.isFinite(event.time) ? event.time : (this.lastAt ?? Date.now());
++    this.lastAt = at;
++    const key = typeof event.seq === 'number' ? String(event.seq) : `${type}:${at}`;
++
++    switch (type) {
++      case 'session': {
++        const cwd = str(data.cwd);
++        if (cwd) this.sys(key, at, tr('Sessão do DeepSeek Harness aberta em {0}', [cwd]));
++        return;
++      }
++      case 'user/message': {
++        // O DSH grava contexto de execução, catálogo de skills e horário como mensagens de usuário; só o prompt
++        // digitado (source.kind 'user' ou sem source) entra no terminal.
++        const source = rec(data.source);
++        const kind = str(source?.kind);
++        if (kind && kind !== 'user') return;
++        const raw = textOf(data.content).trim();
++        if (!raw) return;
++        const text = prepare(raw, TEXT_MAX);
++        const body = marked(text);
++        if (body) this.emit({ kind: 'user', id: `${key}:u`, at, text: body });
++        return;
++      }
++      case 'assistant/message': {
++        const message = rec(data.message);
++        const text = prepare(textOf(message?.content), TEXT_MAX);
++        const body = marked(text);
++        if (body) this.emit({ kind: 'assistant', id: `${key}:a`, at, text: body });
++        return;
++      }
++      case 'tool/call': {
++        const callId = str(data.callId) ?? str(data.call_id) ?? key;
++        const rawName = str(data.name) ?? 'ferramenta';
++        const name = TOOL_NAMES[rawName] ?? rawName;
++        const view = toolView(name, parseArgs(data.arguments), this.cwd);
++        const entry: ToolEntry = { kind: 'tool', id: `${callId}:t`, at, tool: name, title: maskSecrets(view.title) };
++        if (view.input) {
++          entry.input = view.input;
++          if (view.inputKind) entry.inputKind = view.inputKind as TerminalInputKind;
++        }
++        this.emit(entry);
++        return;
++      }
++      case 'tool/result': {
++        const message = rec(data.message);
++        const callId = str(data.toolCallId) ?? str(data.callId) ?? str(data.call_id);
++        if (!callId) return;
++        const p = prepare(textOf(message?.content), RESULT_MAX, RESULT_MAX_LINES);
++        const entry: ResultEntry = { kind: 'result', id: `${callId}:r`, at, toolUseId: `${callId}:t`, text: p.text || tr('(sem saída)') };
++        if (message?.isError === true) entry.error = true;
++        if (p.truncated) entry.truncated = true;
++        this.emit(entry);
++        return;
++      }
++      case 'approval/asked': {
++        const tool = str(data.toolName);
++        this.sys(`${key}:ap`, at, tool ? tr('Pede aprovação para usar {0}', [tool]) : tr('Pede aprovação'), 'warn');
++        return;
++      }
++      case 'approval/decided': {
++        this.sys(`${key}:ad`, at, data.outcome === 'denied' ? tr('Aprovação recusada') : tr('Aprovação respondida'));
++        return;
++      }
++      case 'turn/end': {
++        const reason = rec(data.reason);
++        const error = rec(reason?.error);
++        if (error) this.sys(`${key}:err`, at, tr('Erro: {0}', [oneLine(str(error.message) ?? tr('desconhecido'), 160)]), 'error');
++        return;
++      }
++      case 'system/message': {
++        const text = textOf(data.content);
++        if (text) this.sys(key, at, oneLine(text, 160));
++        return;
++      }
++      case 'workspace/changes': {
++        const changes = Array.isArray(data.changes) ? data.changes.length : 0;
++        if (changes) this.sys(`${key}:ws`, at, tr('{0} arquivo(s) alterado(s)', [changes]));
++        return;
++      }
++      default:
++        return;
++    }
++  }
++
++  private sys(id: string, at: number, text: string, level: 'info' | 'warn' | 'error' = 'info'): void {
++    if (!text.trim()) return;
++    this.emit({ kind: 'system', id: `${id}:s`, at, text: maskSecrets(text), level });
++  }
++}
+diff --git a/shared/locales/en.ts b/shared/locales/en.ts
+index 46e8fc7..fb5572b 100644
+--- a/shared/locales/en.ts
++++ b/shared/locales/en.ts
+@@ -936,7 +936,6 @@ export const EN: Readonly<Record<string, string>> = {
+   "Não deu para falar com o servidor do Habblaud.": "Couldn't reach the Habblaud server.",
+ 
+   // client/src/ui/widgets.ts
+-  "Agente do Codex (OpenAI)": "Codex agent (OpenAI)",
+   "Principal": "Main",
+   "Subagente: {0}{1}": "Subagent: {0}{1}",
+   " (em segundo plano)": " (in the background)",
+@@ -3273,4 +3272,28 @@ export const EN: Readonly<Record<string, string>> = {
+   "Carimbo deixado na portaria: {0}": "Stamp left at the front desk: {0}",
+   "Entre no prédio ou chegue mais perto da porta para carimbar.": "Go into the building or get closer to the door to stamp.",
+   "O carimbo não foi deixado. Tente de novo.": "The stamp wasn't left. Try again.",
++
++  // DeepSeek Harness (npm run dsh:bridge)
++  "Agente do {0}": "Agent from {0}",
++  "evento inválido": "invalid event",
++  "eventos do DeepSeek Harness só são aceitos pelo próprio computador (http://localhost ou http://127.0.0.1)": "DeepSeek Harness events are only accepted from this computer (http://localhost or http://127.0.0.1)",
++  "Agente principal (DeepSeek Harness)": "Main agent (DeepSeek Harness)",
++  "aprovar no terminal": "approve in the terminal",
++  "sessão local": "local session",
++  "tokens da sessão do DeepSeek Harness": "DeepSeek Harness session tokens",
++  "{0} tokens nesta sessão": "{0} tokens in this session",
++  "5 h: {0} tokens · semana: {1}": "5 h: {0} tokens · week: {1}",
++  "{0} tokens · 5 h": "{0} tokens · 5 h",
++  "Tokens na sessão": "Tokens in session",
++  "Tokens em 5 h": "Tokens in 5 h",
++  "Tokens na semana": "Tokens this week",
++  "Ainda não há tokens desta conta: abra uma sessão do DSH com a ponte `npm run dsh:bridge` rodando.": "No tokens for this account yet: open a DSH session with the `npm run dsh:bridge` bridge running.",
++  "Tokens somados das sessões do DeepSeek Harness. O DeepSeek cobra por token: não há janela de cota de 5 h/semana como no Claude Code.": "Tokens summed from DeepSeek Harness sessions. DeepSeek bills per token: there is no 5 h/weekly quota window like Claude Code.",
++  "Sessão do DeepSeek Harness aberta em {0}": "DeepSeek Harness session opened in {0}",
++  "Pede aprovação para usar {0}": "Asks approval to use {0}",
++  "Pede aprovação": "Asks approval",
++  "Aprovação recusada": "Approval denied",
++  "Aprovação respondida": "Approval answered",
++  "{0} arquivo(s) alterado(s)": "{0} file(s) changed",
++  "O DeepSeek Harness ainda não recebe mensagens pelo Habblaud: escreva na janela do DSH. O terminal aqui é só de leitura.": "DeepSeek Harness does not receive messages through Habblaud yet: type in the DSH window. The terminal here is read-only.",
+ };
+diff --git a/shared/locales/es.ts b/shared/locales/es.ts
+index 0e07979..54d1c59 100644
+--- a/shared/locales/es.ts
++++ b/shared/locales/es.ts
+@@ -936,7 +936,6 @@ export const ES: Readonly<Record<string, string>> = {
+   "Não deu para falar com o servidor do Habblaud.": "No se pudo contactar con el servidor de Habblaud.",
+ 
+   // client/src/ui/widgets.ts
+-  "Agente do Codex (OpenAI)": "Agente de Codex (OpenAI)",
+   "Principal": "Principal",
+   "Subagente: {0}{1}": "Subagente: {0}{1}",
+   " (em segundo plano)": " (en segundo plano)",
+@@ -3274,4 +3273,28 @@ export const ES: Readonly<Record<string, string>> = {
+   "Carimbo deixado na portaria: {0}": "Sello dejado en la recepción: {0}",
+   "Entre no prédio ou chegue mais perto da porta para carimbar.": "Entra al edificio o acércate más a la puerta para sellar.",
+   "O carimbo não foi deixado. Tente de novo.": "El sello no se dejó. Inténtalo de nuevo.",
++
++  // DeepSeek Harness (npm run dsh:bridge)
++  "Agente do {0}": "Agente de {0}",
++  "evento inválido": "evento inválido",
++  "eventos do DeepSeek Harness só são aceitos pelo próprio computador (http://localhost ou http://127.0.0.1)": "los eventos de DeepSeek Harness solo se aceptan desde este equipo (http://localhost o http://127.0.0.1)",
++  "Agente principal (DeepSeek Harness)": "Agente principal (DeepSeek Harness)",
++  "aprovar no terminal": "aprobar en la terminal",
++  "sessão local": "sesión local",
++  "tokens da sessão do DeepSeek Harness": "tokens de la sesión de DeepSeek Harness",
++  "{0} tokens nesta sessão": "{0} tokens en esta sesión",
++  "5 h: {0} tokens · semana: {1}": "5 h: {0} tokens · semana: {1}",
++  "{0} tokens · 5 h": "{0} tokens · 5 h",
++  "Tokens na sessão": "Tokens en la sesión",
++  "Tokens em 5 h": "Tokens en 5 h",
++  "Tokens na semana": "Tokens en la semana",
++  "Ainda não há tokens desta conta: abra uma sessão do DSH com a ponte `npm run dsh:bridge` rodando.": "Aún no hay tokens de esta cuenta: abre una sesión del DSH con la ponte `npm run dsh:bridge` en marcha.",
++  "Tokens somados das sessões do DeepSeek Harness. O DeepSeek cobra por token: não há janela de cota de 5 h/semana como no Claude Code.": "Tokens sumados de las sesiones de DeepSeek Harness. DeepSeek cobra por token: no hay ventana de cuota de 5 h/semana como en Claude Code.",
++  "Sessão do DeepSeek Harness aberta em {0}": "Sesión de DeepSeek Harness abierta en {0}",
++  "Pede aprovação para usar {0}": "Pide aprobación para usar {0}",
++  "Pede aprovação": "Pide aprobación",
++  "Aprovação recusada": "Aprobación rechazada",
++  "Aprovação respondida": "Aprobación respondida",
++  "{0} arquivo(s) alterado(s)": "{0} archivo(s) modificado(s)",
++  "O DeepSeek Harness ainda não recebe mensagens pelo Habblaud: escreva na janela do DSH. O terminal aqui é só de leitura.": "DeepSeek Harness aún no recibe mensajes por Habblaud: escribe en la ventana del DSH. El terminal aquí es solo de lectura.",
+ };
+diff --git a/shared/locales/fr.ts b/shared/locales/fr.ts
+index 7e27d0e..03aadeb 100644
+--- a/shared/locales/fr.ts
++++ b/shared/locales/fr.ts
+@@ -882,7 +882,6 @@ export const FR: Readonly<Record<string, string>> = {
+   "Não deu para falar com o servidor do Habblaud.": "Impossible de joindre le serveur Habblaud.",
+ 
+   // client/src/ui/widgets.ts
+-  "Agente do Codex (OpenAI)": "Agent Codex (OpenAI)",
+   "Principal": "Principal",
+   "Subagente: {0}{1}": "Sous-agent : {0}{1}",
+   " (em segundo plano)": " (en arrière-plan)",
+@@ -3290,4 +3289,28 @@ export const FR: Readonly<Record<string, string>> = {
+   "Carimbo deixado na portaria: {0}": "Tampon laissé à l'accueil : {0}",
+   "Entre no prédio ou chegue mais perto da porta para carimbar.": "Entrez dans l'immeuble ou approchez-vous de la porte pour tamponner.",
+   "O carimbo não foi deixado. Tente de novo.": "Le tampon n'a pas été laissé. Réessayez.",
++
++  // DeepSeek Harness (npm run dsh:bridge)
++  "Agente do {0}": "Agent de {0}",
++  "evento inválido": "événement invalide",
++  "eventos do DeepSeek Harness só são aceitos pelo próprio computador (http://localhost ou http://127.0.0.1)": "les événements DeepSeek Harness ne sont acceptés que depuis cet ordinateur (http://localhost ou http://127.0.0.1)",
++  "Agente principal (DeepSeek Harness)": "Agent principal (DeepSeek Harness)",
++  "aprovar no terminal": "approuver dans le terminal",
++  "sessão local": "session locale",
++  "tokens da sessão do DeepSeek Harness": "tokens de la session DeepSeek Harness",
++  "{0} tokens nesta sessão": "{0} tokens dans cette session",
++  "5 h: {0} tokens · semana: {1}": "5 h : {0} tokens · semaine : {1}",
++  "{0} tokens · 5 h": "{0} tokens · 5 h",
++  "Tokens na sessão": "Tokens dans la session",
++  "Tokens em 5 h": "Tokens sur 5 h",
++  "Tokens na semana": "Tokens sur la semaine",
++  "Ainda não há tokens desta conta: abra uma sessão do DSH com a ponte `npm run dsh:bridge` rodando.": "Pas encore de tokens pour ce compte : ouvrez une session DSH avec la pont `npm run dsh:bridge` en marche.",
++  "Tokens somados das sessões do DeepSeek Harness. O DeepSeek cobra por token: não há janela de cota de 5 h/semana como no Claude Code.": "Tokens cumulés des sessions DeepSeek Harness. DeepSeek facture au token : il n'y a pas de fenêtre de quota de 5 h/semaine comme dans Claude Code.",
++  "Sessão do DeepSeek Harness aberta em {0}": "Session DeepSeek Harness ouverte dans {0}",
++  "Pede aprovação para usar {0}": "Demande une approbation pour utiliser {0}",
++  "Pede aprovação": "Demande une approbation",
++  "Aprovação recusada": "Approbation refusée",
++  "Aprovação respondida": "Approbation traitée",
++  "{0} arquivo(s) alterado(s)": "{0} fichier(s) modifié(s)",
++  "O DeepSeek Harness ainda não recebe mensagens pelo Habblaud: escreva na janela do DSH. O terminal aqui é só de leitura.": "DeepSeek Harness ne reçoit pas encore de messages via Habblaud : écrivez dans la fenêtre DSH. Le terminal ici est en lecture seule.",
+ };
+diff --git a/shared/types.ts b/shared/types.ts
+index 6c8cde9..33a0afd 100644
+--- a/shared/types.ts
++++ b/shared/types.ts
+@@ -13,9 +13,10 @@ export type AgentKind = 'main' | 'sub';
+  * De qual ferramenta vem o agente (ou a conta, a fonte, a sessão, o pedido). Nos tipos do protocolo o campo
+  * `provider` é opcional e AUSENTE quer dizer 'claude' (tudo o que existia antes do Codex continua igual).
+  * - claude: Claude Code;
+- * - codex: OpenAI Codex (CLI `codex` e o app desktop, que gravam no mesmo CODEX_HOME).
++ * - codex: OpenAI Codex (CLI `codex` e o app desktop, que gravam no mesmo CODEX_HOME);
++ * - dsh: DeepSeek Harness (eventos enviados pela ponte `npm run dsh:bridge`).
+  */
+-export type Provider = 'claude' | 'codex';
++export type Provider = 'claude' | 'codex' | 'dsh';
+ 
+ /**
+  * Estado de alto nível de um agente — é o que dirige o comportamento do personagem.
+@@ -286,9 +287,19 @@ export interface AccountUsage {
+    * - 'statusline': capturado ao vivo e gravado em ~/.habblaud/usage/<conta>.json pelo mod do Habblaud
+    *   (mod/habblaud, recomendado) ou pelo scripts/statusline-tap.mjs (campo rate_limits do statusline);
+    * - 'cache': `cachedUsageUtilization` gravado pelo próprio Claude Code (atualiza quando alguém roda /usage);
+-   * - 'codex': `rate_limits` dos arquivos de sessão do Codex (só se renovam enquanto alguma sessão roda).
++   * - 'codex': `rate_limits` dos arquivos de sessão do Codex (só se renovam enquanto alguma sessão roda);
++   * - 'dsh': tokens somados dos eventos da sessão do DeepSeek Harness (o DSH não tem janela de cota percentual).
+    */
+-  source: 'cache' | 'statusline' | 'codex';
++  source: 'cache' | 'statusline' | 'codex' | 'dsh';
++  /**
++   * Uso em TOKENS do DeepSeek Harness (`source: 'dsh'`). O DeepSeek cobra por token, não por uma cota de 5 h/semana
++   * como o Claude Code: os números são contagens, não percentuais. `session` é a sessão que está aberta agora.
++   */
++  tokens?: {
++    fiveHour: number;
++    sevenDay: number;
++    session?: number;
++  };
+   /** Quem gravou o arquivo ao vivo ('statusline'): o mod do Habblaud no Claude Code ou o tap de statusline. */
+   via?: 'mod' | 'tap';
+   /**
+diff --git a/shared/world/office-from-world.ts b/shared/world/office-from-world.ts
+index f899e73..990f9ac 100644
+--- a/shared/world/office-from-world.ts
++++ b/shared/world/office-from-world.ts
+@@ -52,6 +52,8 @@ export function isWorldId(id: string): boolean {
+ export const WORLD_TOOL_ACCOUNTS: Readonly<Record<Provider, { short: string; name: string; color: string }>> = {
+   claude: { short: 'C', name: 'Claude Code', color: '#f08a3c' },
+   codex: { short: 'X', name: 'Codex', color: '#a77bf3' },
++  // O protocolo do mundo ainda não manda DSH; a chave existe só para o Record<Provider> ficar completo.
++  dsh: { short: 'D', name: 'DeepSeek Harness', color: '#4d6bfe' },
+ };
+ const PROVIDERS: readonly Provider[] = ['claude', 'codex'];
+ /** Status que existem no mundo; um que esta versão não conhece vira 'idle' (passeia, sem prometer nada). */
+diff --git a/shared/world/projection.ts b/shared/world/projection.ts
+index 9a9f361..d699248 100644
+--- a/shared/world/projection.ts
++++ b/shared/world/projection.ts
+@@ -139,6 +139,9 @@ export function projectWithReport(input: ProjectionInput, ids: WorldIdSource, no
+   const byRoom = new Map<string, AgentInfo[]>();
+   for (const a of input.agents) {
+     if (isDemoId(a.id) || isDemoId(a.roomId) || !roomIds.has(a.roomId)) continue;
++    // O protocolo do mundo só conhece Claude Code e Codex. Mandar um agente do DSH como se fosse de outra ferramenta
++    // seria mentir sobre o escritório; ele fica de fora até o protocolo ganhar o provider.
++    if (a.provider === 'dsh') continue;
+     if ((a.kind !== 'main' && a.kind !== 'sub') || !isWorldStatus(a.status)) continue;
+     const list = byRoom.get(a.roomId);
+     if (list) list.push(a);

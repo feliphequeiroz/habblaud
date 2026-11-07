@@ -4,9 +4,11 @@ import { NAME_MAX, parseAppearanceParts, parseCharacterName, parseSeed } from '.
 import type { AccessInfo, AgentInfo, ModSummary, OfficeSnapshot, SourceInfo, UpdateStatus } from '../../shared/types';
 import type { AccountsService } from '../accounts/service';
 import { handleCodexEvent } from '../codex/http';
+import { handleDshEvent } from '../dsh/http';
 import type { DayStatsService } from '../history/daystats';
 import type { Office } from '../model/office';
 import type { CodexLive } from '../sources/codex/live';
+import type { DshLive } from '../sources/dsh/source';
 import type { SessionLookup } from '../sources/source';
 import { isJsonContentType, isLoopbackHost } from './guard';
 import type { RemoteFeature } from './remote';
@@ -29,6 +31,8 @@ export interface ApiDeps {
   accounts: AccountsService;
   sources: () => SourceInfo[];
   version: string;
+  /** Quando este processo subiu (epoch ms): a ponte do DSH usa para saber que o escritório reiniciou. */
+  bootAt?: number;
   inDocker: boolean;
   /** Terminal ligado (ServerConfig.terminal: só com bind local). */
   terminal?: boolean;
@@ -63,6 +67,11 @@ export interface ApiDeps {
    * não dependem da trava do terminal).
    */
   codexLive?: CodexLive;
+  /**
+   * Fonte do DeepSeek Harness: recebe os eventos da ponte `npm run dsh:bridge` (POST /api/dsh/events). Sem ela a rota
+   * responde {ok: false}. Só observa e só vale pelo próprio computador, como os eventos do Codex.
+   */
+  dshLive?: DshLive;
   /** Novo agente pelo escritório (/api/spawn e, para o auxiliar do host, /api/host/spawn/*; server/spawn/spawn.ts). */
   spawn?: SpawnService;
   /** Pastas sugeridas no "Novo agente" (GET /api/spawn/folders; spawn/folders.ts): projetos recentes. */
@@ -376,6 +385,8 @@ export function createApiHandler(deps: ApiDeps): (req: IncomingMessage, res: Ser
           pty: !!deps.pty && !remote,
           messages: !!deps.messages && (!remote || trusted(req, 'messages')),
           codexEvents: !!deps.codexLive,
+          dshEvents: !!deps.dshLive,
+          bootAt: deps.bootAt,
           updates: updatesSummary(deps.updates?.status()),
           sources: deps.sources(),
           accounts: accounts.allEntries().map((a) =>
@@ -487,6 +498,15 @@ export function createApiHandler(deps: ApiDeps): (req: IncomingMessage, res: Ser
       else if (!trusted(req) || (!deps.inDocker && !isLoopbackAddress(req.socket.remoteAddress))) {
         sendJson(res, 403, { error: denied(req, tr('eventos do Codex só são aceitos pelo próprio computador (http://localhost ou http://127.0.0.1)')) });
       } else handleCodexEvent(req, res, { live: deps.codexLive, entries: () => accounts.entriesOf('codex') }).catch((err) => fail(res, err));
+      return true;
+    }
+    if (path === '/api/dsh/events') {
+      // Eventos da ponte do DeepSeek Harness: mesma trava dos eventos do Codex (só observam e só valem pelo próprio
+      // computador; no Docker a ponte chega pela porta publicada).
+      if (method !== 'POST') methodNotAllowed(res, 'POST');
+      else if (!trusted(req) || (!deps.inDocker && !isLoopbackAddress(req.socket.remoteAddress))) {
+        sendJson(res, 403, { error: denied(req, tr('eventos do DeepSeek Harness só são aceitos pelo próprio computador (http://localhost ou http://127.0.0.1)')) });
+      } else handleDshEvent(req, res, { live: deps.dshLive }).catch((err) => fail(res, err));
       return true;
     }
     if (path === '/api/spawn' || path.startsWith('/api/spawn/')) {

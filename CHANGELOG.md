@@ -10,6 +10,16 @@ do meio (0.**3**.0).
 
 ## [Não lançado]
 
+### Adicionado
+
+- **`npm run dsh:install` liga o DeepSeek Harness ao escritório em um comando.** Ele copia o plugin do inbox para o
+  perfil do DSH, acrescenta o bloco no `cordis.patch.yml` (com backup e sem nunca duplicar; cópias repetidas são
+  removidas e um bloco editado à mão faz o comando parar em vez de arriscar) e instala o serviço que roda a ponte
+  (`--all`): LaunchAgent no macOS, unidade systemd de usuário no Linux/WSL, com `loginctl enable-linger`. O
+  `npm run dsh:status` confere dependências (`zstd`, `lsof`), plugin, bloco, serviço e o `/api/health`, e o
+  `npm run dsh:uninstall` desfaz tudo. O passo a passo está em [`docs/INSTALAR-DSH.md`](docs/INSTALAR-DSH.md).
+
+
 ## [1.0.3] - 2026-10-16
 
 ### Corrigido

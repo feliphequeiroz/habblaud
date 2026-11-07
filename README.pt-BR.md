@@ -5,7 +5,7 @@
 <h1 align="center">Habblaud</h1>
 
 <p align="center">
-  <b>O escritório virtual dos seus agentes do Claude Code (e do Codex).</b><br />
+  <b>O escritório virtual dos seus agentes do Claude Code, do Codex e do DeepSeek Harness.</b><br />
   Cada projeto vira uma sala, cada agente vira um personagem em pixel art que mostra, em tempo real, o que está fazendo.
 </p>
 
@@ -129,6 +129,8 @@ ela, e o endereço antigo apaga e é desmontado. Assim o prédio não fica com b
 - **[Claude Code](https://code.claude.com)** instalado, com uma ou mais contas (2.1.287 ou mais novo para o mod).
 - **Node.js 22.12+** e **npm** (desenvolvido com o Node 24; o Docker já usa o Node 24).
 - **Docker Desktop** (ou Docker Engine com Compose v2), se for rodar em container.
+- **(opcional) DeepSeek Harness** com um perfil em `~/.dsh` — a integração com o DSH deste fork precisa de `zstd` e
+  `lsof`; o `npm run dsh:install` confere os dois.
 
 ### 1. Baixe o projeto
 
@@ -225,6 +227,33 @@ npm run codex:status       # confere
 Depois, **abra o Codex e aprove os hooks do Habblaud em `/hooks`**: o Codex só roda um hook novo depois que você o
 aprova (o Habblaud nunca grava essa aprovação). Com o Habblaud no Docker, para mandar mensagens às sessões do Codex
 deixe também `npm run codex:bridge` rodando no Mac (veja [Codex](#codex)).
+
+### DeepSeek Harness no escritório (opcional)
+
+O **DeepSeek Harness** (o DSH, este agente) também aparece: cada sessão aberta vira um personagem com o selo **DSH**. O DSH grava a sessão em `~/.dsh/sessions/…/session.v4.jsonl.zstd`; uma ponte lê esse arquivo e manda os eventos para o Habblaud, sem escrever nada na sessão:
+
+```bash
+npm run dsh:install             # plugin + bloco no perfil do DSH + serviço da ponte (passo a passo: docs/INSTALAR-DSH.md)
+npm run dsh:status              # confere cada peça
+```
+
+Ou, à mão, a ponte sozinha: `npm run dsh:bridge -- --all`. O `dsh:install` cria o serviço que a mantém rodando (LaunchAgent no macOS, systemd no Linux/WSL), reiniciando sozinha e subindo no login. Ela descobre as sessões abertas pelo `session.lock`, reenvia tudo quando o Habblaud reinicia e fecha o personagem quando a sessão do DSH termina. Para acompanhar só um projeto: `npm run dsh:bridge -- --workspace <pasta>`; para uma sessão específica: `--session <arquivo>`.
+
+> O terminal do Habblaud abre a conversa do DSH (prompts, ferramentas e resultados) e a caixa de mensagens funciona com o plugin `mod/habblaud-dsh-inbox`: ele busca as mensagens no Habblaud e as entrega como prompt na sessão. O cartão do DSH mostra **tokens** (sessão, 5 h e semana) somados dos eventos da sessão — o DeepSeek cobra por token, então não há as janelas percentuais do Claude Code e o passo a passo do `mod:install` não se aplica. Aprovações continuam no terminal do DSH. O Habblaud World ainda não recebe agentes DSH (o protocolo só conhece Claude Code e Codex), então eles não entram no pacote do prédio.
+
+**Mensagens pelo escritório (plugin do DSH):** o Habblaud não tem como digitar na sessão do DSH sozinho; o plugin `mod/habblaud-dsh-inbox` faz a ponte. O `npm run dsh:install` já copia o plugin para o perfil e acrescenta o bloco no `cordis.patch.yml` (com backup e sem duplicar); para desfazer, `npm run dsh:uninstall`. À mão, seria copiar para `~/.dsh/profiles/desktop/habblaud-inbox.mjs` e acrescentar ao fim do `cordis.patch.yml`:
+
+```yaml
+- insert:
+    - id: habblaud-dsh-inbox
+      name: "./habblaud-inbox.mjs"
+```
+
+O DSH recarrega o perfil sozinho (HMR). O log fica em `~/.habblaud/dsh-inbox.log`.
+
+Instalação do zero: [`docs/INSTALAR-DSH.md`](docs/INSTALAR-DSH.md) (um comando: `npm run dsh:install`; nada é
+duplicado no seu perfil). Guia completo, com arquitetura e solução de problemas:
+[`docs/deepseek-harness.pt-BR.md`](docs/deepseek-harness.pt-BR.md).
 
 ### Abrir no celular (opcional)
 
@@ -1197,6 +1226,18 @@ O Habblaud é um projeto independente, **não afiliado, patrocinado nem endossad
 Para mostrar os agentes, o Habblaud lê apenas arquivos locais que o próprio Claude Code grava na sua máquina
 (registros das sessões abertas, transcripts e configurações das contas). Esse formato não é documentado e pode mudar entre versões do Claude Code:
 depois de uma atualização, o Habblaud pode deixar de funcionar, total ou parcialmente, até ser ajustado.
+
+## Sobre este fork
+
+Este é um fork de [marmottajr/habblaud](https://github.com/marmottajr/habblaud) que acrescenta o **DeepSeek Harness
+(DSH) como provedor de primeira classe**: um personagem ao vivo por sessão aberta do DSH, terminal, uso de tokens,
+mensagens pelo escritório e um instalador que liga tudo (`npm run dsh:install` / `dsh:status`). O resto é o Habblaud
+original, sem mudanças; a integração vive em `server/sources/dsh/`, `server/dsh/`, `scripts/dsh-bridge.ts`,
+`scripts/dsh-install.ts` e `mod/habblaud-dsh-inbox/`.
+
+O Habblaud é MIT: o copyright original e o `LICENSE` ficam como estão. A integração com o DSH é local — não fala com
+nenhum servidor do Habblaud e não adiciona dependência de runtime. A verificação de versão em **Configurações › Sobre**
+continua consultando as releases do repositório original, então ela mostra a versão do upstream, não a deste fork.
 
 ## Licença
 

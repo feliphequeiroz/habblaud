@@ -139,6 +139,9 @@ export function projectWithReport(input: ProjectionInput, ids: WorldIdSource, no
   const byRoom = new Map<string, AgentInfo[]>();
   for (const a of input.agents) {
     if (isDemoId(a.id) || isDemoId(a.roomId) || !roomIds.has(a.roomId)) continue;
+    // O protocolo do mundo só conhece Claude Code e Codex. Mandar um agente do DSH como se fosse de outra ferramenta
+    // seria mentir sobre o escritório; ele fica de fora até o protocolo ganhar o provider.
+    if (a.provider === 'dsh') continue;
     if ((a.kind !== 'main' && a.kind !== 'sub') || !isWorldStatus(a.status)) continue;
     const list = byRoom.get(a.roomId);
     if (list) list.push(a);
